@@ -1,5 +1,14 @@
-import type { FormattedAlert, LineView, TrainView, TravelDir } from "../types";
+import { useState } from "react";
+import type {
+  FormattedAlert,
+  LineMeta,
+  LineStationView,
+  LineView,
+  TrainView,
+  TravelDir,
+} from "../types";
 import { Dial } from "./Dial";
+import { StationInfoCard } from "./StationInfoCard";
 
 function travelBorderRadius(dir: TravelDir, nose: number, tail: number): string {
   if (dir === 1) return `${tail}px ${nose}px ${nose}px ${tail}px`;
@@ -101,6 +110,8 @@ function LineStrip({
   sel: TrainView | null;
   onSelectTrain: (id: string) => void;
 }) {
+  const [hoverStationId, setHoverStationId] = useState<number | null>(null);
+  const hoveredStation = ln.stations.find((s) => s.id === hoverStationId) ?? null;
   return (
     <div
       style={{
@@ -172,28 +183,36 @@ function LineStrip({
               opacity: 0.25,
             }}
           />
-          {ln.stations.map((st) => (
-            <div
-              key={st.id}
-              title={st.name}
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: `${st.leftPct}%`,
-                transform: "translate(-50%,-50%)",
-              }}
-            >
+          {ln.stations.map((st) => {
+            const hovered = hoverStationId === st.id;
+            return (
               <div
+                key={st.id}
+                onMouseEnter={() => setHoverStationId(st.id)}
+                onMouseLeave={() => setHoverStationId((cur) => (cur === st.id ? null : cur))}
                 style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "#0b1220",
-                  border: "2px solid #3a4d6e",
+                  position: "absolute",
+                  top: "50%",
+                  left: `${st.leftPct}%`,
+                  transform: "translate(-50%,-50%)",
+                  padding: 4,
+                  cursor: "help",
+                  zIndex: hovered ? 4 : 1,
                 }}
-              />
-            </div>
-          ))}
+              >
+                <div
+                  style={{
+                    width: hovered ? 11 : 8,
+                    height: hovered ? 11 : 8,
+                    borderRadius: "50%",
+                    background: "#0b1220",
+                    border: `2px solid ${hovered ? "#cdd8e8" : "#3a4d6e"}`,
+                    transition: "width .12s, height .12s, border-color .12s",
+                  }}
+                />
+              </div>
+            );
+          })}
           {ln.devices.map((tr) => (
             <PositionedDeviceChip
               key={tr.id}
@@ -202,6 +221,7 @@ function LineStrip({
               onClick={() => onSelectTrain(tr.id)}
             />
           ))}
+          {hoveredStation && <StationTooltip st={hoveredStation} line={ln.meta} />}
         </div>
       ) : (
         <div
@@ -223,6 +243,25 @@ function LineStrip({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function StationTooltip({ st, line }: { st: LineStationView; line: LineMeta }) {
+  const flipX = st.leftPct > 70;
+  const offsetX = flipX ? -8 : 8;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: `${st.leftPct}%`,
+        bottom: "calc(50% + 10px)",
+        transform: `translate(${flipX ? "-100%" : "0"}, 0) translateX(${offsetX}px)`,
+        zIndex: 5,
+        pointerEvents: "none",
+      }}
+    >
+      <StationInfoCard name={st.name} nameRoman={st.nameRoman} id={st.id} line={line} />
     </div>
   );
 }

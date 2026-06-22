@@ -4,9 +4,10 @@ import { EngineerView } from "#/components/EngineerView";
 import { Header } from "#/components/Header";
 import { LineFocusView } from "#/components/LineFocusView";
 import { LiveStatusBar } from "#/components/LiveStatusBar";
+import { MapView } from "#/components/MapView";
 import { NetworkView } from "#/components/NetworkView";
 import { TabNav } from "#/components/TabNav";
-import { buildLineViews, computeKpi, deriveTrain, formatAlerts } from "#/derive";
+import { buildLineViews, buildMapData, computeKpi, deriveTrain, formatAlerts } from "#/derive";
 import type { Filter, View } from "#/types";
 import { useThqDevices } from "#/useThqSocket";
 import { formatClock } from "#/utils";
@@ -27,6 +28,7 @@ function Home() {
   const views = Array.from(devices.values()).map((d) => deriveTrain(d, now, lineMetadata));
   const kpi = computeKpi(views);
   const linesView = buildLineViews(views, lineMetadata);
+  const mapData = buildMapData(views, lineMetadata);
   const activeLine = linesView.find((l) => l.meta.id === activeLineId) ?? linesView[0] ?? null;
   const sel = selectedId ? (views.find((t) => t.id === selectedId) ?? null) : null;
 
@@ -85,6 +87,7 @@ function Home() {
             onSelectTrain={setSelectedId}
           />
         )}
+        {view === "map" && <MapView data={mapData} sel={sel} onSelectTrain={setSelectedId} />}
         {view === "line" && (
           <LineFocusView
             linesView={linesView}

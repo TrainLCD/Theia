@@ -8,6 +8,10 @@ import type {
   LineMeta,
   LineStationView,
   LineView,
+  MapBounds,
+  MapData,
+  MapLineView,
+  MapTrainView,
   MovementState,
   Status,
   TrainView,
@@ -228,6 +232,9 @@ export function deriveTrain(
     leftPct: positionResult.leftPct,
     hasPosition: positionResult.hasPosition,
     travelDir: device.travelDir,
+    headAngle: device.headAngle,
+    latitude: device.latitude,
+    longitude: device.longitude,
     movementState,
     dirGlyph: stateGlyph,
     dirText: stateLabel,
@@ -281,6 +288,7 @@ export function buildLineViews(
     const stations: LineStationView[] = extStations.map((s, i) => ({
       id: s.id,
       name: s.name,
+      nameRoman: s.nameRoman,
       leftPct: (i / denom) * 100,
     }));
     return {
@@ -334,6 +342,84 @@ export function computeKpi(views: TrainView[]): Kpi {
       : 0,
     avgSpeed: total ? Math.round(views.reduce((a, b) => a + b.speed, 0) / len) : 0,
   };
+}
+
+function computeMapBounds(points: { lat: number; lon: number }[]): MapBounds | null {
+  if (points.length === 0) return null;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLon = Infinity;
+  let maxLon = -Infinity;
+  for (const p of points) {
+    if (p.lat < minLat) minLat = p.lat;
+    if (p.lat > maxLat) maxLat = p.lat;
+    if (p.lon < minLon) minLon = p.lon;
+    if (p.lon > maxLon) maxLon = p.lon;
+  }
+  const padLat = Math.max((maxLat - minLat) * 0.06, 0.001);
+  const padLon = Math.max((maxLon - minLon) * 0.06, 0.001);
+  return {
+    minLat: minLat - padLat,
+    maxLat: maxLat + padLat,
+    minLon: minLon - padLon,
+    maxLon: maxLon + padLon,
+  };
+}
+
+function projectGeo(lat: number, lon: number, bounds: MapBounds): { x: number; y: number } {
+  const latSpread = bounds.maxLat - bounds.minLat;
+  const lonSpread = bounds.maxLon - bounds.minLon;
+  const x = lonSpread > 0 ? ((lon - bounds.minLon) / lonSpread) * 100 : 50;
+  const y = latSpread > 0 ? ((bounds.maxLat - lat) / latSpread) * 100 : 50;
+  return { x, y };
+}
+
+export function buildMapData(
+  views: TrainView[],
+  externalLines: Map<number, ExternalLineMeta>,
+): MapData {
+  const lineEntries = Array.from(externalLines.entries()).sort((a, b) => a[0] - b[0]);
+  if (lineEntries.length === 0) return { lines: [], trains: [], bounds: null };
+
+  const points: { lat: number; lon: number }[] = [];
+  for (const [, ext] of lineEntries) {
+    for (const s of ext.stations) points.push({ lat: s.latitude, lon: s.longitude });
+  }
+  for (const v of views) {
+    if (v.latitude != null && v.longitude != null) {
+      points.push({ lat: v.latitude, lon: v.longitude });
+    }
+  }
+  const bounds = computeMapBounds(points);
+  if (!bounds) return { lines: [], trains: [], bounds: null };
+
+  const countByLine = new Map<number, number>();
+  for (const v of views) {
+    if (v.lineId != null) countByLine.set(v.lineId, (countByLine.get(v.lineId) ?? 0) + 1);
+  }
+
+  const lines: MapLineView[] = lineEntries.map(([id, ext]) => {
+    const projected = ext.stations.map((s) => {
+      const p = projectGeo(s.latitude, s.longitude, bounds);
+      return { id: s.id, name: s.name, nameRoman: s.nameRoman, x: p.x, y: p.y };
+    });
+    return {
+      meta: lineMetaFor(id, externalLines),
+      pointsStr: projected.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" "),
+      stations: projected,
+      count: countByLine.get(id) ?? 0,
+    };
+  });
+
+  const trains: MapTrainView[] = views.map((v) => {
+    if (v.latitude == null || v.longitude == null) {
+      return { ...v, mapX: 50, mapY: 50, headAngle: 0, hasMapPosition: false };
+    }
+    const p = projectGeo(v.latitude, v.longitude, bounds);
+    return { ...v, mapX: p.x, mapY: p.y, headAngle: v.headAngle ?? 0, hasMapPosition: true };
+  });
+
+  return { lines, trains, bounds };
 }
 
 export function formatAlerts(

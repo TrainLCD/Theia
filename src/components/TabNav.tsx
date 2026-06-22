@@ -30,6 +30,13 @@ export function TabNav({ view, onChangeView, counts }: TabNavProps) {
         ネットワーク監視
       </NavButton>
       <NavButton
+        active={view === "map"}
+        color={navColor("map")}
+        onClick={() => onChangeView("map")}
+      >
+        マップ
+      </NavButton>
+      <NavButton
         active={view === "line"}
         color={navColor("line")}
         onClick={() => onChangeView("line")}

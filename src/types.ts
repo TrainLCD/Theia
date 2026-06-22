@@ -1,4 +1,4 @@
-export type View = "network" | "line" | "engineer";
+export type View = "network" | "map" | "line" | "engineer";
 export type Filter = "all" | "alert" | "error" | "comm";
 export type Comm = "ok" | "weak" | "lost";
 export type Status = "normal" | "warn" | "error";
@@ -27,6 +27,7 @@ export interface Device {
   activeErrors: Map<string, DeviceError>;
   lastLeftPct: number | null;
   travelDir: TravelDir;
+  headAngle: number | null;
 }
 
 export interface AlertEntry {
@@ -58,6 +59,9 @@ export interface TrainView {
   leftPct: number;
   hasPosition: boolean;
   travelDir: TravelDir;
+  headAngle: number | null;
+  latitude: number | null;
+  longitude: number | null;
   movementState: MovementState | null;
   dirGlyph: string;
   dirText: string;
@@ -107,6 +111,7 @@ export interface ExternalLineMeta {
 export interface LineStationView {
   id: number;
   name: string;
+  nameRoman: string | null;
   leftPct: number;
 }
 
@@ -117,6 +122,41 @@ export interface LineView {
   trainCount: number;
   alertCount: number;
   hasAlert: boolean;
+}
+
+export interface MapBounds {
+  minLat: number;
+  maxLat: number;
+  minLon: number;
+  maxLon: number;
+}
+
+export interface MapStation {
+  id: number;
+  name: string;
+  nameRoman: string | null;
+  x: number;
+  y: number;
+}
+
+export interface MapLineView {
+  meta: LineMeta;
+  pointsStr: string;
+  stations: MapStation[];
+  count: number;
+}
+
+export interface MapTrainView extends TrainView {
+  mapX: number;
+  mapY: number;
+  headAngle: number;
+  hasMapPosition: boolean;
+}
+
+export interface MapData {
+  lines: MapLineView[];
+  trains: MapTrainView[];
+  bounds: MapBounds | null;
 }
 
 export interface FormattedAlert {

@@ -120,10 +120,27 @@ function freshDevice(deviceId: string, ts: number): Device {
     activeErrors: new Map(),
     lastLeftPct: null,
     travelDir: 0,
+    headAngle: null,
   };
 }
 
 const TRAVEL_DELTA_THRESHOLD = 0.2;
+// Squared (dLat,dLon) threshold to filter GPS noise (~10m at Tokyo latitude).
+const HEAD_ANGLE_SQDIST_THRESHOLD = 1e-8;
+
+function computeHeadAngle(
+  prevLat: number | null,
+  prevLon: number | null,
+  lat: number,
+  lon: number,
+): number | null {
+  if (prevLat == null || prevLon == null) return null;
+  const dLat = lat - prevLat;
+  const dLon = lon - prevLon;
+  if (dLat * dLat + dLon * dLon < HEAD_ANGLE_SQDIST_THRESHOLD) return null;
+  // Screen Y is inverted vs latitude (north = top = smaller y).
+  return (Math.atan2(-dLat, dLon) * 180) / Math.PI;
+}
 
 function synthesizeCode(type: string, level: string): string {
   const t = type === "system" ? "SYS" : type === "app" ? "APP" : "CLT";
@@ -155,6 +172,10 @@ function applyLocation(
     travelDir = 0;
   }
 
+  const headAngle =
+    computeHeadAngle(prev.latitude, prev.longitude, msg.coords.latitude, msg.coords.longitude) ??
+    prev.headAngle;
+
   const next: Device = {
     ...prev,
     lineId: msg.line_id,
@@ -167,6 +188,7 @@ function applyLocation(
     lastSeenAt: msg.timestamp || ts,
     lastLeftPct: newLeftPct,
     travelDir,
+    headAngle,
   };
   devices.set(msg.device, next);
   return {
