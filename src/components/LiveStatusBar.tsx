@@ -114,7 +114,7 @@ function formatLatest(s: ThqSocketState): string | null {
   const pickLoc = loc && (!log || loc.timestamp >= log.timestamp);
   if (pickLoc && loc) {
     const acc = loc.coords.accuracy != null ? `±${loc.coords.accuracy.toFixed(1)}m` : "—";
-    const spd = loc.coords.speed != null ? `${loc.coords.speed.toFixed(1)}km/h` : "—";
+    const spd = loc.coords.speed != null ? `${(loc.coords.speed * 3.6).toFixed(1)}km/h` : "—";
     return `LOC ${loc.device} · L${loc.line_id}${loc.station_id ? ` S${loc.station_id}` : ""} · ${loc.state} · ${acc} · ${spd}`;
   }
   if (log) {
