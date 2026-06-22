@@ -40,7 +40,7 @@ export function Header({ kpis, clock, dateStr }: HeaderProps) {
           </span>
         </KpiBlock>
         <KpiBlock label="平均位置情報精度">
-          <span className="font-mono" style={{ color: "#38bdf8", fontSize: 19, fontWeight: 600 }}>
+          <span className="font-mono" style={{ color: "#e6edf7", fontSize: 19, fontWeight: 600 }}>
             {kpis.avgMeters}
             <span style={{ fontSize: 11, color: "#6b7d9c" }}> m</span>
           </span>
@@ -83,15 +83,15 @@ function Brand() {
           position: "relative",
         }}
       >
-        <div style={{ width: 13, height: 13, borderRadius: "50%", border: "2px solid #3b82f6" }} />
+        <div style={{ width: 13, height: 13, borderRadius: "50%", border: "2px solid #cdd8e8" }} />
         <div
           style={{
             position: "absolute",
             width: 5,
             height: 5,
             borderRadius: "50%",
-            background: "#7dd3fc",
-            boxShadow: "0 0 8px #38bdf8",
+            background: "#e6edf7",
+            boxShadow: "0 0 8px rgba(230,237,247,.6)",
           }}
         />
       </div>

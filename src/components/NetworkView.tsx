@@ -269,7 +269,7 @@ function SelectedDevicePanel({ sel }: { sel: TrainView }) {
         </span>
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
-        <Dial value={sel.speed} unit="km/h" pct={sel.speedPct} color="#3b82f6" />
+        <Dial value={sel.speed} unit="km/h" pct={sel.speedPct} color="#e6edf7" />
         <Dial value={`±${sel.meters}`} unit="精度 m" pct={sel.conf} color={sel.confColor} />
         <div
           style={{

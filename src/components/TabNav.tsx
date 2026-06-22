@@ -8,7 +8,7 @@ export interface TabNavProps {
 }
 
 export function TabNav({ view, onChangeView, counts }: TabNavProps) {
-  const navColor = (v: View) => (view === v ? "#3b82f6" : "#6b7d9c");
+  const navColor = (v: View) => (view === v ? "#e6edf7" : "#6b7d9c");
   return (
     <nav
       style={{
@@ -95,7 +95,7 @@ function NavButton({
             right: 10,
             bottom: 0,
             height: 2,
-            background: "#3b82f6",
+            background: "#e6edf7",
             borderRadius: 2,
           }}
         />

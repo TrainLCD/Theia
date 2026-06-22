@@ -70,8 +70,8 @@ function LineTabs({
               gap: 8,
               padding: "8px 14px",
               borderRadius: 8,
-              border: `1px solid ${active ? "#3b82f6" : "#1e2c44"}`,
-              background: active ? "#10203b" : "#0c1322",
+              border: `1px solid ${active ? "#e6edf7" : "#1e2c44"}`,
+              background: active ? "#1a2333" : "#0c1322",
               color: "#e6edf7",
               fontFamily: "inherit",
               fontSize: 12.5,
@@ -294,7 +294,7 @@ function TrainCard({ tr, onSelect }: { tr: TrainView; onSelect: () => void }) {
         />
       </div>
       <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-        <Dial value={tr.speed} unit="km/h" pct={tr.speedPct} color="#3b82f6" size={78} />
+        <Dial value={tr.speed} unit="km/h" pct={tr.speedPct} color="#e6edf7" size={78} />
         <Dial value={`±${tr.meters}`} unit="精度 m" pct={tr.conf} color={tr.confColor} size={78} />
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 7 }}>
           <div>
