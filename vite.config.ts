@@ -20,7 +20,7 @@ const config = defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: lazyPlugins(() => [
     devtools(),
-    nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+    nitro({ serverDir: "server", rollupConfig: { external: [/^@sentry\//] } }),
     tailwindcss(),
     tanstackStart(),
     viteReact(),

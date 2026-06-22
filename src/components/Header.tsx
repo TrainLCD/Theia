@@ -24,7 +24,7 @@ export function Header({ kpis, clock, dateStr }: HeaderProps) {
       <Brand />
       <div style={{ width: 1, height: 30, background: "#1e2c44" }} />
       <div style={{ display: "flex", gap: 26, alignItems: "center" }}>
-        <KpiBlock label="稼働中 / 全デバイス">
+        <KpiBlock label="動作中 / 全デバイス">
           <span className="font-mono" style={{ color: "#22c55e", fontSize: 19, fontWeight: 600 }}>
             {kpis.running}
           </span>
@@ -33,7 +33,7 @@ export function Header({ kpis, clock, dateStr }: HeaderProps) {
             / {kpis.total}
           </span>
         </KpiBlock>
-        <KpiBlock label="警報">
+        <KpiBlock label="警告">
           <span className="font-mono" style={{ color: "#f59e0b", fontSize: 19, fontWeight: 600 }}>
             {kpis.alerts}
             <span style={{ fontSize: 11, color: "#6b7d9c" }}> 件</span>

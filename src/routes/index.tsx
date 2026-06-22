@@ -3,28 +3,31 @@ import { useState } from "react";
 import { EngineerView } from "#/components/EngineerView";
 import { Header } from "#/components/Header";
 import { LineFocusView } from "#/components/LineFocusView";
+import { LiveStatusBar } from "#/components/LiveStatusBar";
 import { NetworkView } from "#/components/NetworkView";
 import { TabNav } from "#/components/TabNav";
-import { LINE_DEFS } from "#/data";
 import { buildLineViews, computeKpi, deriveTrain, formatAlerts } from "#/derive";
 import type { Filter, View } from "#/types";
-import { useTrainSimulation } from "#/useTrainSimulation";
+import { useThqDevices } from "#/useThqSocket";
 import { formatClock } from "#/utils";
+
+const THQ_EVENTS_PATH = "/api/thq-events";
 
 export const Route = createFileRoute("/")({ component: Home });
 
 function Home() {
-  const { trains, alerts, now } = useTrainSimulation();
+  const thq = useThqDevices(THQ_EVENTS_PATH);
+  const { devices, alerts, now, lineMetadata } = thq;
 
   const [view, setView] = useState<View>("network");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeLineId, setActiveLineId] = useState<string>(LINE_DEFS[0]!.id);
+  const [activeLineId, setActiveLineId] = useState<number | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
 
-  const views = trains.map(deriveTrain);
+  const views = Array.from(devices.values()).map((d) => deriveTrain(d, now, lineMetadata));
   const kpi = computeKpi(views);
-  const linesView = buildLineViews(views);
-  const activeLine = linesView.find((l) => l.def.id === activeLineId) ?? linesView[0]!;
+  const linesView = buildLineViews(views, lineMetadata);
+  const activeLine = linesView.find((l) => l.meta.id === activeLineId) ?? linesView[0] ?? null;
   const sel = selectedId ? (views.find((t) => t.id === selectedId) ?? null) : null;
 
   const table = views
@@ -78,7 +81,7 @@ function Home() {
           <NetworkView
             linesView={linesView}
             sel={sel}
-            alerts={formatAlerts(alerts)}
+            alerts={formatAlerts(alerts, lineMetadata)}
             onSelectTrain={setSelectedId}
           />
         )}
@@ -103,6 +106,7 @@ function Home() {
           />
         )}
       </div>
+      <LiveStatusBar url={THQ_EVENTS_PATH} socket={thq} />
     </div>
   );
 }

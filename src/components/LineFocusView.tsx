@@ -1,10 +1,17 @@
-import type { LineView, TrainView } from "../types";
+import type { LineView, TrainView, TravelDir } from "../types";
 import { Dial } from "./Dial";
+
+function travelBorderRadius(dir: TravelDir, nose: number, tail: number): string {
+  if (dir === 1) return `${tail}px ${nose}px ${nose}px ${tail}px`;
+  if (dir === -1) return `${nose}px ${tail}px ${tail}px ${nose}px`;
+  const m = (nose + tail) / 2;
+  return `${m}px`;
+}
 
 export interface LineFocusViewProps {
   linesView: LineView[];
-  activeLine: LineView;
-  onSelectLine: (id: string) => void;
+  activeLine: LineView | null;
+  onSelectLine: (id: number) => void;
   onSelectTrain: (id: string) => void;
 }
 
@@ -28,21 +35,53 @@ export function LineFocusView({
       }}
     >
       <LineTabs linesView={linesView} activeLine={activeLine} onSelectLine={onSelectLine} />
-      <LineMap activeLine={activeLine} onSelectTrain={onSelectTrain} />
-      <div style={{ fontSize: 12, fontWeight: 600, color: "#8597b3", letterSpacing: ".14em" }}>
-        稼働中デバイス — 速度 / 位置情報精度
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(252px, 1fr))",
-          gap: 13,
-        }}
-      >
-        {activeLine.trains.map((tr) => (
-          <TrainCard key={tr.id} tr={tr} onSelect={() => onSelectTrain(tr.id)} />
-        ))}
-      </div>
+      {activeLine ? (
+        <>
+          <LineMap activeLine={activeLine} onSelectTrain={onSelectTrain} />
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#8597b3", letterSpacing: ".14em" }}>
+            動作中デバイス — 速度 / 位置情報精度
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(252px, 1fr))",
+              gap: 13,
+            }}
+          >
+            {activeLine.devices.map((tr) => (
+              <TrainCard key={tr.id} tr={tr} onSelect={() => onSelectTrain(tr.id)} />
+            ))}
+            {activeLine.devices.length === 0 && (
+              <div
+                style={{
+                  padding: 28,
+                  border: "1px dashed #25344f",
+                  borderRadius: 10,
+                  color: "#51617a",
+                  fontSize: 12,
+                  textAlign: "center",
+                }}
+              >
+                この路線のデバイスはまだ受信していません
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div
+          style={{
+            padding: 32,
+            border: "1px dashed #25344f",
+            borderRadius: 10,
+            color: "#51617a",
+            fontSize: 12,
+            textAlign: "center",
+            lineHeight: 1.7,
+          }}
+        >
+          THQ からデバイスイベントを待機しています…
+        </div>
+      )}
     </div>
   );
 }
@@ -53,17 +92,18 @@ function LineTabs({
   onSelectLine,
 }: {
   linesView: LineView[];
-  activeLine: LineView;
-  onSelectLine: (id: string) => void;
+  activeLine: LineView | null;
+  onSelectLine: (id: number) => void;
 }) {
+  if (linesView.length === 0) return null;
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
       {linesView.map((ln) => {
-        const active = ln.def.id === activeLine.def.id;
+        const active = activeLine ? ln.meta.id === activeLine.meta.id : false;
         return (
           <button
-            key={ln.def.id}
-            onClick={() => onSelectLine(ln.def.id)}
+            key={ln.meta.id}
+            onClick={() => onSelectLine(ln.meta.id)}
             style={{
               display: "flex",
               alignItems: "center",
@@ -79,8 +119,8 @@ function LineTabs({
               cursor: "pointer",
             }}
           >
-            <span style={{ width: 10, height: 10, borderRadius: 3, background: ln.def.color }} />
-            {ln.def.name}
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: ln.meta.color }} />
+            {ln.meta.name}
             <span className="font-mono" style={{ fontSize: 10.5, color: "#6b7d9c" }}>
               {ln.trainCount}
             </span>
@@ -98,6 +138,7 @@ function LineMap({
   activeLine: LineView;
   onSelectTrain: (id: string) => void;
 }) {
+  const hasStations = activeLine.stations.length > 0;
   return (
     <div
       style={{
@@ -114,50 +155,58 @@ function LineMap({
             width: 13,
             height: 13,
             borderRadius: 4,
-            background: activeLine.def.color,
-            boxShadow: `0 0 12px ${activeLine.def.color}`,
+            background: activeLine.meta.color,
+            boxShadow: `0 0 12px ${activeLine.meta.color}`,
           }}
         />
-        <span style={{ fontSize: 17, fontWeight: 700 }}>{activeLine.def.name}</span>
+        <span style={{ fontSize: 17, fontWeight: 700 }}>{activeLine.meta.name}</span>
         <span className="font-mono" style={{ fontSize: 11, color: "#51617a" }}>
-          最高速度 {activeLine.def.maxSpeed} km/h · {activeLine.def.stations.length}駅
+          {activeLine.trainCount} デバイス
+          {hasStations ? ` · ${activeLine.stations.length}駅` : ""}
+          {activeLine.alertCount > 0 ? ` · ⚠ ${activeLine.alertCount}` : ""}
         </span>
       </div>
-      <div style={{ position: "relative", height: 46, margin: "0 14px 40px" }}>
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: "50%",
-            height: 6,
-            transform: "translateY(-50%)",
-            borderRadius: 3,
-            backgroundImage: `repeating-linear-gradient(90deg, ${activeLine.def.color} 0 11px, transparent 11px 22px)`,
-            backgroundSize: "22px 100%",
-            opacity: 0.34,
-            animation: "dashmove 1.1s linear infinite",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: "50%",
-            height: 2,
-            transform: "translateY(-50%)",
-            background: activeLine.def.color,
-            opacity: 0.3,
-          }}
-        />
-        {activeLine.stations.map((st) => (
-          <StationMarker key={st.name} name={st.name} leftPct={st.leftPct} />
-        ))}
-        {activeLine.trains.map((tr) => (
-          <TrainBadge key={tr.id} tr={tr} onClick={() => onSelectTrain(tr.id)} />
-        ))}
-      </div>
+      {hasStations ? (
+        <div style={{ position: "relative", height: 46, margin: "0 14px 40px" }}>
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "50%",
+              height: 6,
+              transform: "translateY(-50%)",
+              borderRadius: 3,
+              backgroundImage: `repeating-linear-gradient(90deg, ${activeLine.meta.color} 0 11px, transparent 11px 22px)`,
+              backgroundSize: "22px 100%",
+              opacity: 0.34,
+              animation: "dashmove 1.1s linear infinite",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "50%",
+              height: 2,
+              transform: "translateY(-50%)",
+              background: activeLine.meta.color,
+              opacity: 0.3,
+            }}
+          />
+          {activeLine.stations.map((st) => (
+            <StationMarker key={st.id} name={st.name} leftPct={st.leftPct} />
+          ))}
+          {activeLine.devices.map((tr) => (
+            <TrainBadge key={tr.id} tr={tr} onClick={() => onSelectTrain(tr.id)} />
+          ))}
+        </div>
+      ) : (
+        <div style={{ color: "#51617a", fontSize: 11, padding: "12px 0 18px" }}>
+          駅情報を読込中…
+        </div>
+      )}
     </div>
   );
 }
@@ -213,7 +262,7 @@ function TrainBadge({ tr, onClick }: { tr: TrainView; onClick: () => void }) {
         top: "50%",
         left: `${tr.leftPct}%`,
         transform: "translate(-50%,-50%)",
-        transition: "left .98s linear",
+        transition: "left .9s linear",
         cursor: "pointer",
         zIndex: 3,
       }}
@@ -228,25 +277,75 @@ function TrainBadge({ tr, onClick }: { tr: TrainView; onClick: () => void }) {
             height: 22,
             borderRadius: "50%",
             border: `2px solid ${tr.statusColor}`,
+            transform: "translate(-50%,-50%)",
             animation: "ringPulse 1.6s ease-out infinite",
           }}
         />
       )}
       <div
+        title={tr.no}
         style={{
+          position: "relative",
           display: "flex",
-          alignItems: "center",
-          gap: 5,
+          flexDirection: "column",
+          gap: 1,
           padding: "3px 8px",
-          borderRadius: 9,
+          width: 86,
+          borderRadius: travelBorderRadius(tr.travelDir, 14, 3),
           background: "#0e1830",
           border: `1.5px solid ${tr.statusColor}`,
           boxShadow: `0 0 10px ${tr.glowColor}`,
+          overflow: "hidden",
         }}
       >
-        <span style={{ width: 9, height: 9, borderRadius: "50%", background: tr.statusColor }} />
-        <span className="font-mono" style={{ fontSize: 11, fontWeight: 600 }}>
-          {tr.dirGlyph} {tr.no}
+        <span
+          className="font-mono"
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "#dbe6f5",
+            lineHeight: 1.1,
+            display: "block",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: "100%",
+          }}
+        >
+          {tr.no}
+        </span>
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            lineHeight: 1.1,
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: tr.statusColor,
+              flex: "none",
+            }}
+          />
+          <span
+            className="font-mono"
+            style={{
+              fontSize: 10.5,
+              color: "#cdd8e8",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minWidth: 0,
+            }}
+          >
+            {tr.speed}
+            <span style={{ fontSize: 8.5, color: "#6b7d9c", marginLeft: 2 }}>km/h</span>
+          </span>
         </span>
       </div>
     </div>
@@ -278,10 +377,9 @@ function TrainCard({ tr, onSelect }: { tr: TrainView; onSelect: () => void }) {
         >
           {tr.type}
         </span>
-        <span className="font-mono" style={{ fontSize: 15, fontWeight: 600 }}>
+        <span className="font-mono" style={{ fontSize: 13, fontWeight: 600 }}>
           {tr.no}
         </span>
-        <span style={{ fontSize: 10.5, color: "#51617a" }}>{tr.cars}両</span>
         <div style={{ flex: 1 }} />
         <span
           style={{
@@ -295,14 +393,20 @@ function TrainCard({ tr, onSelect }: { tr: TrainView; onSelect: () => void }) {
       </div>
       <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
         <Dial value={tr.speed} unit="km/h" pct={tr.speedPct} color="#e6edf7" size={78} />
-        <Dial value={`±${tr.meters}`} unit="精度 m" pct={tr.conf} color={tr.confColor} size={78} />
+        <Dial
+          value={tr.meters != null ? `±${tr.meters}` : "—"}
+          unit="精度 m"
+          pct={tr.conf}
+          color={tr.confColor}
+          size={78}
+        />
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 7 }}>
           <div>
             <div style={{ fontSize: 9.5, color: "#6b7d9c" }}>通信</div>
             <div style={{ fontSize: 12, fontWeight: 600, color: tr.commColor }}>{tr.commLabel}</div>
           </div>
           <div>
-            <div style={{ fontSize: 9.5, color: "#6b7d9c" }}>次駅 {tr.dirGlyph}</div>
+            <div style={{ fontSize: 9.5, color: "#6b7d9c" }}>駅</div>
             <div style={{ fontSize: 11.5, color: "#cdd8e8" }}>{tr.nextStation}</div>
           </div>
         </div>
@@ -320,8 +424,9 @@ function TrainCard({ tr, onSelect }: { tr: TrainView; onSelect: () => void }) {
         >
           {tr.errors.map((e) => (
             <span
-              key={e.code}
+              key={`${e.code}:${e.label}`}
               className="font-mono"
+              title={`${e.code} ${e.label}`}
               style={{
                 fontSize: 9.5,
                 fontWeight: 600,
@@ -330,6 +435,10 @@ function TrainCard({ tr, onSelect }: { tr: TrainView; onSelect: () => void }) {
                 border: `1px solid ${e.color}`,
                 padding: "2px 6px",
                 borderRadius: 4,
+                maxWidth: "100%",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
               {e.code} {e.label}

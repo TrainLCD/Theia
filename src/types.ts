@@ -3,59 +3,40 @@ export type Filter = "all" | "alert" | "error" | "comm";
 export type Comm = "ok" | "weak" | "lost";
 export type Status = "normal" | "warn" | "error";
 export type Severity = "E" | "W";
+export type MovementState = "arrived" | "approaching" | "passing" | "moving";
 
-export interface LineDef {
-  id: string;
-  name: string;
-  color: string;
-  lengthKm: number;
-  maxSpeed: number;
-  stations: string[];
-}
-
-export interface TrainTypeDef {
-  t: string;
-  c: string;
-}
-
-export interface ErrorDef {
+export interface DeviceError {
   code: string;
-  label: string;
+  message: string;
   sev: Severity;
+  ts: number;
 }
 
-export interface ActiveError extends ErrorDef {
-  ttl: number;
-}
+export type TravelDir = 1 | -1 | 0;
 
-export interface Train {
-  id: string;
-  no: string;
-  type: string;
-  typeColor: string;
-  lineId: string;
-  cars: number;
-  pos: number;
-  dir: 1 | -1;
+export interface Device {
+  deviceId: string;
+  lineId: number | null;
+  stationId: number | null;
+  movementState: MovementState | null;
+  latitude: number | null;
+  longitude: number | null;
+  accuracy: number | null;
   speed: number;
-  baseSpeed: number;
-  maxSpeed: number;
-  conf: number;
-  comm: Comm;
-  phase: number;
-  phase2: number;
-  errors: ActiveError[];
+  lastSeenAt: number;
+  activeErrors: Map<string, DeviceError>;
+  lastLeftPct: number | null;
+  travelDir: TravelDir;
 }
 
 export interface AlertEntry {
   ts: number;
-  no: string;
-  line: string;
+  device: string;
+  lineId: number | null;
   lineColor: string;
   code: string;
   label: string;
   sev: Severity;
-  kind: "raise" | "clear";
 }
 
 export interface TrainErrorView {
@@ -71,12 +52,13 @@ export interface TrainView {
   no: string;
   type: string;
   typeColor: string;
-  cars: number;
-  lineId: string;
+  lineId: number | null;
   lineName: string;
   lineColor: string;
   leftPct: number;
-  dir: 1 | -1;
+  hasPosition: boolean;
+  travelDir: TravelDir;
+  movementState: MovementState | null;
   dirGlyph: string;
   dirText: string;
   status: Status;
@@ -88,7 +70,7 @@ export interface TrainView {
   speedPct: number;
   conf: number;
   confColor: string;
-  meters: number;
+  meters: number | null;
   comm: Comm;
   commLabel: string;
   commColor: string;
@@ -97,12 +79,41 @@ export interface TrainView {
   noErrors: boolean;
   errorCodes: string;
   nextStation: string;
+  staleSec: number;
+}
+
+export interface LineMeta {
+  id: number;
+  color: string;
+  name: string;
+}
+
+export interface ExternalStation {
+  id: number;
+  name: string;
+  nameRoman: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ExternalLineMeta {
+  id: number;
+  name: string;
+  nameRoman: string | null;
+  color: string;
+  stations: ExternalStation[];
+}
+
+export interface LineStationView {
+  id: number;
+  name: string;
+  leftPct: number;
 }
 
 export interface LineView {
-  def: LineDef;
-  stations: { name: string; leftPct: number }[];
-  trains: TrainView[];
+  meta: LineMeta;
+  devices: TrainView[];
+  stations: LineStationView[];
   trainCount: number;
   alertCount: number;
   hasAlert: boolean;
@@ -110,7 +121,7 @@ export interface LineView {
 
 export interface FormattedAlert {
   time: string;
-  no: string;
+  device: string;
   line: string;
   lineColor: string;
   code: string;

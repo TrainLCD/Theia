@@ -1,5 +1,12 @@
-import type { FormattedAlert, LineView, TrainView } from "../types";
+import type { FormattedAlert, LineView, TrainView, TravelDir } from "../types";
 import { Dial } from "./Dial";
+
+function travelBorderRadius(dir: TravelDir, nose: number, tail: number): string {
+  if (dir === 1) return `${tail}px ${nose}px ${nose}px ${tail}px`;
+  if (dir === -1) return `${nose}px ${tail}px ${tail}px ${nose}px`;
+  const m = (nose + tail) / 2;
+  return `${m}px`;
+}
 
 export interface NetworkViewProps {
   linesView: LineView[];
@@ -28,11 +35,12 @@ export function NetworkView({ linesView, sel, alerts, onSelectTrain }: NetworkVi
             デバイス
           </div>
           <div className="font-mono" style={{ fontSize: 10.5, color: "#51617a" }}>
-            ▶◀ 矢印 = 進行方向　·　クリックでデバイスを選択
+            クリックでデバイスを選択
           </div>
         </div>
+        {linesView.length === 0 && <EmptyState />}
         {linesView.map((ln) => (
-          <LineStrip key={ln.def.id} ln={ln} sel={sel} onSelectTrain={onSelectTrain} />
+          <LineStrip key={ln.meta.id} ln={ln} sel={sel} onSelectTrain={onSelectTrain} />
         ))}
       </div>
 
@@ -66,6 +74,24 @@ export function NetworkView({ linesView, sel, alerts, onSelectTrain }: NetworkVi
   );
 }
 
+function EmptyState() {
+  return (
+    <div
+      style={{
+        padding: 32,
+        border: "1px dashed #25344f",
+        borderRadius: 10,
+        color: "#51617a",
+        fontSize: 12,
+        textAlign: "center",
+        lineHeight: 1.7,
+      }}
+    >
+      THQ からデバイスイベントを待機しています…
+    </div>
+  );
+}
+
 function LineStrip({
   ln,
   sel,
@@ -81,24 +107,21 @@ function LineStrip({
         background: "#0b1220",
         border: "1px solid #1a2740",
         borderRadius: 10,
-        padding: "13px 16px 26px",
+        padding: "13px 16px 14px",
         position: "relative",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <span
           style={{
             width: 11,
             height: 11,
             borderRadius: 3,
-            background: ln.def.color,
-            boxShadow: `0 0 10px ${ln.def.color}`,
+            background: ln.meta.color,
+            boxShadow: `0 0 10px ${ln.meta.color}`,
           }}
         />
-        <span style={{ fontSize: 13.5, fontWeight: 700 }}>{ln.def.name}</span>
-        <span className="font-mono" style={{ fontSize: 10.5, color: "#51617a" }}>
-          最高 {ln.def.maxSpeed}km/h
-        </span>
+        <span style={{ fontSize: 13.5, fontWeight: 700 }}>{ln.meta.name}</span>
         <div style={{ flex: 1 }} />
         <span className="font-mono" style={{ fontSize: 11, color: "#6b7d9c" }}>
           {ln.trainCount}デバイス
@@ -120,69 +143,91 @@ function LineStrip({
           </span>
         )}
       </div>
-      <div style={{ position: "relative", height: 30, margin: "0 6px" }}>
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: "50%",
-            height: 4,
-            transform: "translateY(-50%)",
-            borderRadius: 2,
-            backgroundImage: `repeating-linear-gradient(90deg, ${ln.def.color} 0 11px, transparent 11px 22px)`,
-            backgroundSize: "22px 100%",
-            opacity: 0.3,
-            animation: "dashmove 1.1s linear infinite",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: "50%",
-            height: 1,
-            transform: "translateY(-50%)",
-            background: ln.def.color,
-            opacity: 0.25,
-          }}
-        />
-        {ln.stations.map((st) => (
+      {ln.stations.length > 0 ? (
+        <div style={{ position: "relative", height: 30, margin: "0 6px" }}>
           <div
-            key={st.name}
             style={{
               position: "absolute",
+              left: 0,
+              right: 0,
               top: "50%",
-              transform: "translate(-50%,-50%)",
-              left: `${st.leftPct}%`,
+              height: 4,
+              transform: "translateY(-50%)",
+              borderRadius: 2,
+              backgroundImage: `repeating-linear-gradient(90deg, ${ln.meta.color} 0 11px, transparent 11px 22px)`,
+              backgroundSize: "22px 100%",
+              opacity: 0.3,
+              animation: "dashmove 1.1s linear infinite",
             }}
-          >
-            <div
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "#0b1220",
-                border: "2px solid #3a4d6e",
-              }}
-            />
-          </div>
-        ))}
-        {ln.trains.map((tr) => (
-          <TrainDot
-            key={tr.id}
-            tr={tr}
-            selected={sel?.id === tr.id}
-            onClick={() => onSelectTrain(tr.id)}
           />
-        ))}
-      </div>
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: "50%",
+              height: 1,
+              transform: "translateY(-50%)",
+              background: ln.meta.color,
+              opacity: 0.25,
+            }}
+          />
+          {ln.stations.map((st) => (
+            <div
+              key={st.id}
+              title={st.name}
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: `${st.leftPct}%`,
+                transform: "translate(-50%,-50%)",
+              }}
+            >
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "#0b1220",
+                  border: "2px solid #3a4d6e",
+                }}
+              />
+            </div>
+          ))}
+          {ln.devices.map((tr) => (
+            <PositionedDeviceChip
+              key={tr.id}
+              tr={tr}
+              selected={sel?.id === tr.id}
+              onClick={() => onSelectTrain(tr.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            alignItems: "center",
+            paddingTop: 4,
+          }}
+        >
+          {ln.devices.map((tr) => (
+            <DeviceChip
+              key={tr.id}
+              tr={tr}
+              selected={sel?.id === tr.id}
+              onClick={() => onSelectTrain(tr.id)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function TrainDot({
+function PositionedDeviceChip({
   tr,
   selected,
   onClick,
@@ -194,13 +239,13 @@ function TrainDot({
   return (
     <div
       onClick={onClick}
-      title={tr.no}
+      title={`${tr.no} · ${tr.statusLabel} · ${tr.dirText}`}
       style={{
         position: "absolute",
         top: "50%",
         left: `${tr.leftPct}%`,
         transform: "translate(-50%,-50%)",
-        transition: "left .98s linear",
+        transition: "left .9s linear",
         cursor: "pointer",
         zIndex: 3,
       }}
@@ -215,27 +260,178 @@ function TrainDot({
             height: 18,
             borderRadius: "50%",
             border: `2px solid ${tr.statusColor}`,
+            transform: "translate(-50%,-50%)",
             animation: "ringPulse 1.6s ease-out infinite",
           }}
         />
       )}
       <div
         style={{
+          position: "relative",
           display: "flex",
-          alignItems: "center",
-          gap: 5,
-          padding: "2px 7px 2px 5px",
-          borderRadius: 8,
+          flexDirection: "column",
+          gap: 1,
+          padding: "3px 6px",
+          width: 70,
+          borderRadius: travelBorderRadius(tr.travelDir, 12, 3),
           background: "#0e1830",
-          border: `1.5px solid ${tr.statusColor}`,
+          border: `1.5px solid ${selected ? "#e6edf7" : tr.statusColor}`,
           boxShadow: `0 0 8px ${tr.glowColor}`,
-          transform: `scale(${selected ? 1.25 : 1})`,
+          transform: `scale(${selected ? 1.15 : 1})`,
+          overflow: "hidden",
         }}
       >
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: tr.statusColor }} />
-        <span className="font-mono" style={{ fontSize: 10, fontWeight: 600, color: "#dbe6f5" }}>
-          {tr.dirGlyph}
-          {tr.speed}
+        <span
+          className="font-mono"
+          style={{
+            fontSize: 9.5,
+            fontWeight: 600,
+            color: "#dbe6f5",
+            lineHeight: 1.1,
+            display: "block",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: "100%",
+          }}
+        >
+          {tr.no}
+        </span>
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            lineHeight: 1.1,
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: tr.statusColor,
+              flex: "none",
+            }}
+          />
+          <span
+            className="font-mono"
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: "#dbe6f5",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minWidth: 0,
+            }}
+          >
+            {tr.speed}
+            <span style={{ fontSize: 8.5, color: "#6b7d9c", marginLeft: 2 }}>km/h</span>
+          </span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DeviceChip({
+  tr,
+  selected,
+  onClick,
+}: {
+  tr: TrainView;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      title={`${tr.no} · ${tr.statusLabel} · ${tr.dirText}`}
+      style={{
+        position: "relative",
+        cursor: "pointer",
+      }}
+    >
+      {tr.isAlert && (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            border: `2px solid ${tr.statusColor}`,
+            transform: "translate(-50%,-50%)",
+            animation: "ringPulse 1.6s ease-out infinite",
+          }}
+        />
+      )}
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          padding: "3px 8px",
+          width: 78,
+          borderRadius: travelBorderRadius(tr.travelDir, 14, 3),
+          background: "#0e1830",
+          border: `1.5px solid ${selected ? "#e6edf7" : tr.statusColor}`,
+          boxShadow: `0 0 8px ${tr.glowColor}`,
+          overflow: "hidden",
+        }}
+      >
+        <span
+          className="font-mono"
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            color: "#dbe6f5",
+            lineHeight: 1.1,
+            display: "block",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: "100%",
+          }}
+        >
+          {tr.no}
+        </span>
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            lineHeight: 1.1,
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: tr.statusColor,
+              flex: "none",
+            }}
+          />
+          <span
+            className="font-mono"
+            style={{
+              fontSize: 10.5,
+              color: tr.typeColor,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minWidth: 0,
+            }}
+          >
+            {tr.speed}
+            <span style={{ fontSize: 8.5, color: "#6b7d9c", marginLeft: 2 }}>km/h</span>
+          </span>
         </span>
       </div>
     </div>
@@ -260,7 +456,7 @@ function SelectedDevicePanel({ sel }: { sel: TrainView }) {
         >
           {sel.type}
         </span>
-        <span className="font-mono" style={{ fontSize: 17, fontWeight: 600 }}>
+        <span className="font-mono" style={{ fontSize: 15, fontWeight: 600 }}>
           {sel.no}
         </span>
         <div style={{ flex: 1 }} />
@@ -270,7 +466,12 @@ function SelectedDevicePanel({ sel }: { sel: TrainView }) {
       </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
         <Dial value={sel.speed} unit="km/h" pct={sel.speedPct} color="#e6edf7" />
-        <Dial value={`±${sel.meters}`} unit="精度 m" pct={sel.conf} color={sel.confColor} />
+        <Dial
+          value={sel.meters != null ? `±${sel.meters}` : "—"}
+          unit="精度 m"
+          pct={sel.conf}
+          color={sel.confColor}
+        />
         <div
           style={{
             flex: 1,
@@ -282,10 +483,14 @@ function SelectedDevicePanel({ sel }: { sel: TrainView }) {
           }}
         >
           <div>
-            <div style={{ fontSize: 9.5, color: "#6b7d9c" }}>通信状態</div>
+            <div style={{ fontSize: 9.5, color: "#6b7d9c" }}>通信</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: sel.commColor }}>
               {sel.commLabel}
             </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 9.5, color: "#6b7d9c" }}>最終受信</div>
+            <div style={{ fontSize: 12, color: "#cdd8e8" }}>{sel.staleSec}s 前</div>
           </div>
         </div>
       </div>
@@ -300,34 +505,53 @@ function SelectedDevicePanel({ sel }: { sel: TrainView }) {
           marginBottom: 12,
         }}
       >
-        <Cell label="進行方向">
+        <Cell label="状態">
           {sel.dirGlyph} {sel.dirText}
         </Cell>
-        <Cell label="次駅">{sel.nextStation}</Cell>
-        <Cell label="編成">{sel.cars}両</Cell>
+        <Cell label="駅 / 区間">{sel.nextStation}</Cell>
       </div>
       {sel.hasErrors ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {sel.errors.map((e) => (
             <div
-              key={e.code}
+              key={`${e.code}:${e.label}`}
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: "flex-start",
                 gap: 8,
                 padding: "7px 9px",
                 background: e.bg,
                 border: `1px solid ${e.color}`,
                 borderRadius: 6,
+                minWidth: 0,
               }}
             >
               <span
                 className="font-mono"
-                style={{ fontSize: 10.5, fontWeight: 700, color: e.color }}
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: e.color,
+                  flex: "none",
+                  whiteSpace: "nowrap",
+                  lineHeight: 1.35,
+                }}
               >
                 {e.code}
               </span>
-              <span style={{ fontSize: 11.5, color: "#cdd8e8" }}>{e.label}</span>
+              <span
+                style={{
+                  fontSize: 11.5,
+                  color: "#cdd8e8",
+                  flex: 1,
+                  minWidth: 0,
+                  lineHeight: 1.35,
+                  overflowWrap: "anywhere",
+                  wordBreak: "break-word",
+                }}
+              >
+                {e.label}
+              </span>
             </div>
           ))}
         </div>
@@ -344,7 +568,7 @@ function SelectedDevicePanel({ sel }: { sel: TrainView }) {
           }}
         >
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
-          <span style={{ fontSize: 11.5, color: "#86efac" }}>異常なし — 正常稼働中</span>
+          <span style={{ fontSize: 11.5, color: "#86efac" }}>異常なし — 正常動作中</span>
         </div>
       )}
     </div>
@@ -376,7 +600,7 @@ function SelectedDevicePlaceholder() {
         lineHeight: 1.7,
       }}
     >
-      路線図上のデバイスをクリックすると
+      デバイスをクリックすると
       <br />
       詳細データを表示します
     </div>
@@ -468,9 +692,20 @@ function AlertItem({ a }: { a: FormattedAlert }) {
             {a.code}
           </span>
         </div>
-        <div style={{ fontSize: 11.5, color: "#aeb9cc", marginTop: 3 }}>{a.label}</div>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: "#aeb9cc",
+            marginTop: 3,
+            overflowWrap: "anywhere",
+            wordBreak: "break-word",
+            lineHeight: 1.35,
+          }}
+        >
+          {a.label}
+        </div>
         <div style={{ fontSize: 10, color: "#6b7d9c", marginTop: 2 }}>
-          <span style={{ color: a.lineColor }}>●</span> {a.line} · デバイス {a.no}
+          <span style={{ color: a.lineColor }}>●</span> {a.line} · {a.device}
         </div>
       </div>
     </div>

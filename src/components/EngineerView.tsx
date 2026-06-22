@@ -96,7 +96,7 @@ function FilterBar({
         すべて {counts.total}
       </FilterChip>
       <FilterChip on={filter === "alert"} color="#fbbf24" onClick={() => onFilter("alert")}>
-        警報 {counts.alerts}
+        警告 {counts.alerts}
       </FilterChip>
       <FilterChip on={filter === "error"} color="#f87171" onClick={() => onFilter("error")}>
         エラー {counts.err}
@@ -213,6 +213,7 @@ function TableRow({
       </div>
       <div className="font-mono" style={{ padding: "9px 12px", color: "#cdd8e8" }}>
         {tr.speed}
+        <span style={{ fontSize: 9.5, color: "#6b7d9c", marginLeft: 3 }}>km/h</span>
       </div>
       <div style={{ padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
         <div
@@ -221,7 +222,7 @@ function TableRow({
           <div style={{ width: `${tr.conf}%`, height: "100%", background: tr.confColor }} />
         </div>
         <span className="font-mono" style={{ color: tr.confColor, width: 44 }}>
-          ±{tr.meters}m
+          {tr.meters != null ? `±${tr.meters}m` : "—"}
         </span>
       </div>
       <div style={{ padding: "9px 12px", fontWeight: 600, color: tr.commColor }}>
@@ -308,7 +309,7 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
             className="font-mono"
             style={{ fontSize: 20, fontWeight: 600, color: engSel.confColor }}
           >
-            ±{engSel.meters}
+            {engSel.meters != null ? `±${engSel.meters}` : "—"}
             <span style={{ fontSize: 10, color: "#6b7d9c" }}> m</span>
           </span>
         </DiagTile>
@@ -330,15 +331,16 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {engSel.errors.map((e) => (
             <div
-              key={e.code}
+              key={`${e.code}:${e.label}`}
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: "flex-start",
                 gap: 9,
                 padding: "9px 10px",
                 background: e.bg,
                 border: `1px solid ${e.color}`,
                 borderRadius: 7,
+                minWidth: 0,
               }}
             >
               <span
@@ -349,14 +351,39 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
                   border: `1px solid ${e.color}`,
                   padding: "1px 5px",
                   borderRadius: 3,
+                  flex: "none",
+                  whiteSpace: "nowrap",
+                  lineHeight: 1.4,
                 }}
               >
                 {e.sev}
               </span>
-              <span className="font-mono" style={{ fontSize: 11, fontWeight: 700, color: e.color }}>
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: e.color,
+                  flex: "none",
+                  whiteSpace: "nowrap",
+                  lineHeight: 1.4,
+                }}
+              >
                 {e.code}
               </span>
-              <span style={{ fontSize: 11.5, color: "#cdd8e8" }}>{e.label}</span>
+              <span
+                style={{
+                  fontSize: 11.5,
+                  color: "#cdd8e8",
+                  flex: 1,
+                  minWidth: 0,
+                  lineHeight: 1.4,
+                  overflowWrap: "anywhere",
+                  wordBreak: "break-word",
+                }}
+              >
+                {e.label}
+              </span>
             </div>
           ))}
         </div>
@@ -422,7 +449,7 @@ function WorstList({
                 className="font-mono"
                 style={{ fontSize: 10.5, color: w.confColor, fontWeight: 600 }}
               >
-                ±{w.meters}m
+                {w.meters != null ? `±${w.meters}m` : "—"}
               </span>
             </div>
             <div style={{ height: 6, borderRadius: 3, background: "#1b2740", overflow: "hidden" }}>
