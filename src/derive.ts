@@ -76,7 +76,7 @@ export const statusLabel = (s: Status) =>
 
 export const confColorOf = (c: number) => (c < 50 ? "#ef4444" : c < 75 ? "#f59e0b" : "#22c55e");
 
-export const commLabelOf = (c: Comm) => (c === "ok" ? "正常" : c === "weak" ? "微弱" : "断");
+export const commLabelOf = (c: Comm) => (c === "ok" ? "正常" : c === "weak" ? "微弱" : "不通");
 
 export const commColorOf = (c: Comm) =>
   c === "ok" ? "#22c55e" : c === "weak" ? "#f59e0b" : "#ef4444";
