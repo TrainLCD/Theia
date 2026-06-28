@@ -155,7 +155,7 @@ function LineStrip({
         )}
       </div>
       {ln.stations.length > 0 ? (
-        <div style={{ position: "relative", height: 30, margin: "0 6px" }}>
+        <div style={{ position: "relative", height: 46, margin: "0 6px 28px" }}>
           <div
             style={{
               position: "absolute",
@@ -210,6 +210,23 @@ function LineStrip({
                     transition: "width .12s, height .12s, border-color .12s",
                   }}
                 />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: "50%",
+                    transform: "translateX(-50%) rotate(-32deg)",
+                    transformOrigin: "top left",
+                    whiteSpace: "nowrap",
+                    fontSize: 9.5,
+                    color: "#8597b3",
+                    fontWeight: 500,
+                    marginTop: 4,
+                    pointerEvents: "none",
+                  }}
+                >
+                  {st.name}
+                </div>
               </div>
             );
           })}
