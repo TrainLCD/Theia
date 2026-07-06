@@ -281,7 +281,9 @@ function pruneStaleErrors(state: ThqDevicesState, now: number): ThqDevicesState 
 }
 
 export function useThqDevices(path: string = "/api/thq-events"): ThqDevicesState {
-  const [state, setState] = useState<ThqDevicesState>(() => ({ ...INITIAL, now: Date.now() }));
+  // now は 0 で初期化し、実時刻は useEffect で入れる。
+  // 初期レンダーで Date.now() を使うと SSR とクライアントで値がずれて hydration mismatch になる。
+  const [state, setState] = useState<ThqDevicesState>(INITIAL);
 
   useEffect(() => {
     setState({ ...INITIAL, connection: "connecting", now: Date.now() });

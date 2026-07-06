@@ -47,7 +47,9 @@ function Home() {
     .slice(0, 9);
   const engSel = sel ?? table[0] ?? views[0];
 
-  const { clock, dateStr } = formatClock(now);
+  // now === 0 はマウント前（SSR 含む）。実時刻を描画すると hydration mismatch になるため伏せ字にする。
+  const { clock, dateStr } =
+    now === 0 ? { clock: "--:--:--", dateStr: "--月--日" } : formatClock(now);
 
   return (
     <div
