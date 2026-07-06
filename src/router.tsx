@@ -1,5 +1,15 @@
-import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { Link, createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+
+function NotFound() {
+  return (
+    <main style={{ padding: "4rem 2rem", textAlign: "center" }}>
+      <h1>404 - ページが見つかりません</h1>
+      <p>お探しのページは存在しないか、移動された可能性があります。</p>
+      <Link to="/">トップへ戻る</Link>
+    </main>
+  );
+}
 
 export function getRouter() {
   const router = createTanStackRouter({
@@ -7,6 +17,7 @@ export function getRouter() {
     scrollRestoration: true,
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
+    defaultNotFoundComponent: NotFound,
   });
 
   return router;
