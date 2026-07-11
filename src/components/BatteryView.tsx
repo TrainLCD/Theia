@@ -637,7 +637,7 @@ export function BatteryView({ history, views, now }: BatteryViewProps) {
                   color: delta == null ? "#cdd8e8" : delta < 0 ? "#f59e0b" : "#22c55e",
                 }}
               >
-                {delta != null ? `${delta > 0 ? "+" : ""}${delta}pt` : "—"}
+                {delta != null ? `${delta > 0 ? "+" : ""}${delta}%` : "—"}
               </div>
               <div style={{ padding: "8px 12px" }}>{charging ? "⚡ 充電中" : "—"}</div>
               <div style={{ padding: "8px 12px", color: SECONDARY_INK }}>
