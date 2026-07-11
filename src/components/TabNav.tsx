@@ -50,6 +50,13 @@ export function TabNav({ view, onChangeView, counts }: TabNavProps) {
       >
         エラー解析
       </NavButton>
+      <NavButton
+        active={view === "interactions"}
+        color={navColor("interactions")}
+        onClick={() => onChangeView("interactions")}
+      >
+        インタラクション
+      </NavButton>
       <div style={{ flex: 1 }} />
       <div
         className="font-mono"

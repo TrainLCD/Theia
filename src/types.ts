@@ -1,4 +1,4 @@
-export type View = "network" | "map" | "line" | "engineer";
+export type View = "network" | "map" | "line" | "engineer" | "interactions";
 export type Filter = "all" | "alert" | "error" | "comm";
 export type Comm = "ok" | "weak" | "lost";
 export type Status = "normal" | "warn" | "error";
