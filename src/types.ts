@@ -1,4 +1,4 @@
-export type View = "network" | "map" | "line" | "engineer" | "interactions";
+export type View = "network" | "map" | "line" | "engineer" | "interactions" | "battery";
 export type Filter = "all" | "alert" | "error" | "comm";
 export type Comm = "ok" | "weak" | "lost";
 export type Status = "normal" | "warn" | "error";
@@ -30,6 +30,12 @@ export interface Device {
   headAngle: number | null;
   batteryLevel: number | null;
   batteryState: 0 | 1 | 2 | 3 | null;
+}
+
+export interface BatterySample {
+  ts: number;
+  pct: number;
+  charging: boolean;
 }
 
 export interface AlertEntry {

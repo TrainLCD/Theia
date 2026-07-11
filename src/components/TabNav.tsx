@@ -57,6 +57,13 @@ export function TabNav({ view, onChangeView, counts }: TabNavProps) {
       >
         インタラクション
       </NavButton>
+      <NavButton
+        active={view === "battery"}
+        color={navColor("battery")}
+        onClick={() => onChangeView("battery")}
+      >
+        バッテリ
+      </NavButton>
       <div style={{ flex: 1 }} />
       <div
         className="font-mono"

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { BatteryView } from "#/components/BatteryView";
 import { EngineerView } from "#/components/EngineerView";
 import { Header } from "#/components/Header";
 import { InteractionsView } from "#/components/InteractionsView";
@@ -112,6 +113,7 @@ function Home() {
           />
         )}
         {view === "interactions" && <InteractionsView interactions={thq.interactions} now={now} />}
+        {view === "battery" && <BatteryView history={thq.batteryHistory} views={views} now={now} />}
       </div>
       <LiveStatusBar url={THQ_EVENTS_PATH} socket={thq} />
     </div>
