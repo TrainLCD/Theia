@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { BatteryView } from "#/components/BatteryView";
 import { EngineerView } from "#/components/EngineerView";
 import { Header } from "#/components/Header";
 import { LineFocusView } from "#/components/LineFocusView";
@@ -110,6 +111,7 @@ function Home() {
             counts={{ total: kpi.total, alerts: kpi.alerts, err: kpi.err, commBad: kpi.commBad }}
           />
         )}
+        {view === "battery" && <BatteryView history={thq.batteryHistory} views={views} now={now} />}
       </div>
       <LiveStatusBar url={THQ_EVENTS_PATH} socket={thq} />
     </div>
