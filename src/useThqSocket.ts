@@ -109,6 +109,7 @@ export interface ThqDevicesState {
   devices: Map<string, Device>;
   alerts: AlertEntry[];
   lineMetadata: Map<number, ExternalLineMeta>;
+  interactions: ThqInteractionEvent[];
   batteryHistory: Map<string, BatterySample[]>;
   latestLocation: ThqLocationUpdate | null;
   latestLog: ThqLogEvent | null;
@@ -120,6 +121,7 @@ export type ThqSocketState = ThqDevicesState;
 
 const ERROR_TTL_MS = 60_000;
 const ALERTS_CAP = 40;
+const INTERACTIONS_CAP = 500;
 
 const INITIAL: ThqDevicesState = {
   connection: "connecting",
@@ -128,6 +130,7 @@ const INITIAL: ThqDevicesState = {
   devices: new Map(),
   alerts: [],
   lineMetadata: new Map(),
+  interactions: [],
   batteryHistory: new Map(),
   latestLocation: null,
   latestLog: null,
@@ -393,7 +396,12 @@ export function useThqDevices(path: string = "/api/thq-events"): ThqDevicesState
       setState((s) => {
         if (msg.type === "location_update") return applyLocation(s, msg, ts);
         if (msg.type === "log") return applyLog(s, msg, ts);
-        if (msg.type === "interaction") return { ...s, received: s.received + 1 };
+        if (msg.type === "interaction")
+          return {
+            ...s,
+            received: s.received + 1,
+            interactions: [msg, ...s.interactions].slice(0, INTERACTIONS_CAP),
+          };
         if (msg.type === "error")
           return { ...s, lastError: `${msg.error.type}: ${msg.error.reason}` };
         if (msg.type === "_proxy") return applyProxy(s, msg);
