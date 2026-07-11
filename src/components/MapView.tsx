@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { LineMeta, MapData, MapLineView, MapStation, MapTrainView, TrainView } from "../types";
+import { BatteryBadge } from "./BatteryBadge";
 import { StationInfoCard } from "./StationInfoCard";
 
 const MIN_ZOOM = 1;
@@ -522,6 +523,7 @@ function SelectedCard({ sel }: { sel: TrainView }) {
         <span className="font-mono" style={{ fontSize: 15, fontWeight: 600 }}>
           {sel.no}
         </span>
+        <BatteryBadge tr={sel} />
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: sel.lineColor, fontWeight: 600 }}>
           ● {sel.lineName}

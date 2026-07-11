@@ -146,6 +146,8 @@ function freshDevice(deviceId: string, ts: number): Device {
     lastLeftPct: null,
     travelDir: 0,
     headAngle: null,
+    batteryLevel: null,
+    batteryState: null,
   };
 }
 
@@ -214,6 +216,9 @@ function applyLocation(
     lastLeftPct: newLeftPct,
     travelDir,
     headAngle,
+    // null は「不明」なので直近の既知値を保持する。
+    batteryLevel: msg.battery_level ?? prev.batteryLevel,
+    batteryState: msg.battery_state ?? prev.batteryState,
   };
   devices.set(msg.device, next);
   return {
