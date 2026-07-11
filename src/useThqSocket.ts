@@ -102,6 +102,12 @@ export type ThqMessage =
   | ThqProxyEvent
   | ThqLineMetaEvent;
 
+/** /api/thq-snapshot (GraphQL 由来の初期値) のレスポンス。 */
+export interface ThqSnapshotPayload {
+  messages: ThqMessage[];
+  error?: string;
+}
+
 export interface ThqDevicesState {
   connection: ThqConnectionState;
   received: number;
@@ -364,7 +370,31 @@ function pruneStaleErrors(state: ThqDevicesState, now: number): ThqDevicesState 
   return { ...state, now, devices: changedAny ? devices : state.devices };
 }
 
-export function useThqDevices(path: string = "/api/thq-events"): ThqDevicesState {
+export function applyMessage(state: ThqDevicesState, msg: ThqMessage, ts: number): ThqDevicesState {
+  if (msg.type === "location_update") return applyLocation(state, msg, ts);
+  if (msg.type === "log") return applyLog(state, msg, ts);
+  if (msg.type === "interaction")
+    return {
+      ...state,
+      received: state.received + 1,
+      interactions: [msg, ...state.interactions].slice(0, INTERACTIONS_CAP),
+    };
+  if (msg.type === "error")
+    return { ...state, lastError: `${msg.error.type}: ${msg.error.reason}` };
+  if (msg.type === "_proxy") return applyProxy(state, msg);
+  if (msg.type === "_line_meta") return applyLineMeta(state, msg);
+  return state;
+}
+
+const SNAPSHOT_TIMEOUT_MS = 15_000;
+// スナップショット待ちの間にバッファするライブイベントの上限。超えたら
+// スナップショットを諦めてライブのみで継続する。
+const SNAPSHOT_BUFFER_CAP = 2000;
+
+export function useThqDevices(
+  path: string = "/api/thq-events",
+  snapshotPath: string = "/api/thq-snapshot",
+): ThqDevicesState {
   // now は 0 で初期化し、実時刻は useEffect で入れる。
   // 初期レンダーで Date.now() を使うと SSR とクライアントで値がずれて hydration mismatch になる。
   const [state, setState] = useState<ThqDevicesState>(INITIAL);
@@ -372,6 +402,44 @@ export function useThqDevices(path: string = "/api/thq-events"): ThqDevicesState
   useEffect(() => {
     setState({ ...INITIAL, connection: "connecting", now: Date.now() });
     const source = new EventSource(path);
+
+    // 初期値は GraphQL スナップショット (/api/thq-snapshot) から復元し、SSE は
+    // その間バッファする。スナップショット反映後にバッファを流し、以降はライブ適用。
+    // 両者に同じイベントが含まれ得るため、サーバー付与の id で重複を落とす。
+    let phase: "buffering" | "live" = "buffering";
+    const buffer: ThqMessage[] = [];
+    const snapshotIds = new Set<string>();
+    const controller = new AbortController();
+
+    const eventId = (m: ThqMessage): string | null =>
+      "id" in m && typeof m.id === "string" ? m.id : null;
+
+    const goLive = (snapshot: ThqMessage[], error?: string) => {
+      if (phase === "live") return;
+      phase = "live";
+      // snapshotIds は SSE リスナーからも同期的に参照されるため、
+      // setState の updater (遅延実行・純粋であるべき) の外で確定させる。
+      for (const m of snapshot) {
+        const id = eventId(m);
+        if (id) snapshotIds.add(id);
+      }
+      const pending = buffer.filter((m) => {
+        const id = eventId(m);
+        return id == null || !snapshotIds.has(id);
+      });
+      buffer.length = 0;
+      const ts = Date.now();
+      setState((s) => {
+        let next = s;
+        for (const m of snapshot) next = applyMessage(next, m, ts);
+        // スナップショットの再生はライブの「受信」件数に数えない。
+        next = { ...next, received: s.received };
+        if (error) next = { ...next, lastError: `snapshot: ${error}` };
+        for (const m of pending) next = applyMessage(next, m, ts);
+        // 再生した過去の警告・エラーを稼働中エラー (TTL 60 秒) として残さない。
+        return pruneStaleErrors(next, ts);
+      });
+    };
 
     source.addEventListener("open", () => {
       setState((s) => ({ ...s, connection: "open" }));
@@ -392,33 +460,47 @@ export function useThqDevices(path: string = "/api/thq-events"): ThqDevicesState
         }));
         return;
       }
+      if (phase === "buffering") {
+        if (buffer.length < SNAPSHOT_BUFFER_CAP) {
+          buffer.push(msg);
+          return;
+        }
+        controller.abort();
+        goLive([], "live buffer overflow");
+      }
+      const id = eventId(msg);
+      if (id && snapshotIds.has(id)) return;
       const ts = Date.now();
-      setState((s) => {
-        if (msg.type === "location_update") return applyLocation(s, msg, ts);
-        if (msg.type === "log") return applyLog(s, msg, ts);
-        if (msg.type === "interaction")
-          return {
-            ...s,
-            received: s.received + 1,
-            interactions: [msg, ...s.interactions].slice(0, INTERACTIONS_CAP),
-          };
-        if (msg.type === "error")
-          return { ...s, lastError: `${msg.error.type}: ${msg.error.reason}` };
-        if (msg.type === "_proxy") return applyProxy(s, msg);
-        if (msg.type === "_line_meta") return applyLineMeta(s, msg);
-        return s;
-      });
+      setState((s) => applyMessage(s, msg, ts));
     });
+
+    void fetch(snapshotPath, {
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(SNAPSHOT_TIMEOUT_MS)]),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return (await res.json()) as ThqSnapshotPayload;
+      })
+      .then((body) => {
+        if (controller.signal.aborted) return;
+        goLive(Array.isArray(body.messages) ? body.messages : [], body.error);
+      })
+      .catch((e: unknown) => {
+        // 中断はアンマウント (かバッファ超過で既にライブ移行済み) なので何もしない。
+        if (controller.signal.aborted) return;
+        goLive([], e instanceof Error ? e.message : String(e));
+      });
 
     const tickId = setInterval(() => {
       setState((s) => pruneStaleErrors(s, Date.now()));
     }, 1000);
 
     return () => {
+      controller.abort();
       source.close();
       clearInterval(tickId);
     };
-  }, [path]);
+  }, [path, snapshotPath]);
 
   return state;
 }
