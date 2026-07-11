@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { lineMetaFor, projectToLeftPct } from "./derive";
 import type {
   AlertEntry,
+  BatterySample,
   Device,
   DeviceError,
   ExternalLineMeta,
@@ -108,6 +109,7 @@ export interface ThqDevicesState {
   devices: Map<string, Device>;
   alerts: AlertEntry[];
   lineMetadata: Map<number, ExternalLineMeta>;
+  batteryHistory: Map<string, BatterySample[]>;
   latestLocation: ThqLocationUpdate | null;
   latestLog: ThqLogEvent | null;
   now: number;
@@ -126,6 +128,7 @@ const INITIAL: ThqDevicesState = {
   devices: new Map(),
   alerts: [],
   lineMetadata: new Map(),
+  batteryHistory: new Map(),
   latestLocation: null,
   latestLog: null,
   now: 0,
@@ -149,6 +152,37 @@ function freshDevice(deviceId: string, ts: number): Device {
     batteryLevel: null,
     batteryState: null,
   };
+}
+
+const BATTERY_HISTORY_CAP = 1440;
+const BATTERY_MIN_INTERVAL_MS = 30_000;
+
+// 残量・充電状態が変わらない報告は 30 秒間隔に間引き、1 デバイスあたり
+// BATTERY_HISTORY_CAP 件で打ち切る(30秒間隔なら約12時間分)。
+function appendBatterySample(
+  history: Map<string, BatterySample[]>,
+  msg: ThqLocationUpdate,
+  ts: number,
+): Map<string, BatterySample[]> | null {
+  if (msg.battery_level == null) return null;
+  const pct = Math.max(0, Math.min(100, Math.round(msg.battery_level * 100)));
+  const charging = msg.battery_state === 2;
+  const sampleTs = msg.timestamp || ts;
+  const prev = history.get(msg.device) ?? [];
+  const last = prev[prev.length - 1];
+  if (last) {
+    if (sampleTs <= last.ts) return null;
+    if (
+      last.pct === pct &&
+      last.charging === charging &&
+      sampleTs - last.ts < BATTERY_MIN_INTERVAL_MS
+    ) {
+      return null;
+    }
+  }
+  const next = new Map(history);
+  next.set(msg.device, [...prev, { ts: sampleTs, pct, charging }].slice(-BATTERY_HISTORY_CAP));
+  return next;
 }
 
 const TRAVEL_DELTA_THRESHOLD = 0.2;
@@ -221,10 +255,12 @@ function applyLocation(
     batteryState: msg.battery_state ?? prev.batteryState,
   };
   devices.set(msg.device, next);
+  const batteryHistory = appendBatterySample(state.batteryHistory, msg, ts);
   return {
     ...state,
     received: state.received + 1,
     devices,
+    batteryHistory: batteryHistory ?? state.batteryHistory,
     latestLocation: msg,
   };
 }
