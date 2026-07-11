@@ -15,6 +15,8 @@ const PRIMARY_INK = "#e6edf7";
 const SECONDARY_INK = "#8597b3";
 
 const ANON = "(匿名)";
+// 実デバイス名と衝突しない匿名イベント用の内部キー(表示時に ANON へ変換)。
+const ANON_KEY = "\u0000anon";
 const MAX_RANK_ROWS = 12;
 const MAX_FEED_ROWS = 200;
 
@@ -32,7 +34,11 @@ function fmtHms(ts: number): string {
 }
 
 function deviceKey(e: ThqInteractionEvent): string {
-  return e.device ?? ANON;
+  return e.device ?? ANON_KEY;
+}
+
+function deviceLabel(key: string): string {
+  return key === ANON_KEY ? ANON : key;
 }
 
 function fmtProps(props: ThqInteractionEvent["properties"]): string {
@@ -107,7 +113,10 @@ export function InteractionsView({ interactions, now }: InteractionsViewProps) {
           <FilterChip label={`イベント: ${eventFilter}`} onClear={() => setEventFilter(null)} />
         )}
         {deviceFilter != null && (
-          <FilterChip label={`デバイス: ${deviceFilter}`} onClear={() => setDeviceFilter(null)} />
+          <FilterChip
+            label={`デバイス: ${deviceLabel(deviceFilter)}`}
+            onClear={() => setDeviceFilter(null)}
+          />
         )}
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", gap: 4 }}>
@@ -153,6 +162,7 @@ export function InteractionsView({ interactions, now }: InteractionsViewProps) {
           title="デバイス別件数"
           ranks={deviceRanks}
           selected={deviceFilter}
+          formatKey={deviceLabel}
           onToggle={(k) => setDeviceFilter((cur) => (cur === k ? null : k))}
         />
       </div>
@@ -236,7 +246,7 @@ export function InteractionsView({ interactions, now }: InteractionsViewProps) {
                 whiteSpace: "nowrap",
               }}
             >
-              {deviceKey(e)}
+              {e.device ?? ANON}
             </div>
             <div
               className="font-mono"
@@ -335,11 +345,13 @@ function RankCard({
   title,
   ranks,
   selected,
+  formatKey,
   onToggle,
 }: {
   title: string;
   ranks: { key: string; count: number }[];
   selected: string | null;
+  formatKey?: (key: string) => string;
   onToggle: (key: string) => void;
 }) {
   const max = ranks[0]?.count ?? 0;
@@ -406,7 +418,7 @@ function RankCard({
                 whiteSpace: "nowrap",
               }}
             >
-              {r.key}
+              {formatKey?.(r.key) ?? r.key}
             </span>
             <span style={{ minWidth: 0 }}>
               <span
