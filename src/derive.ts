@@ -206,6 +206,20 @@ export function deriveTrain(
   const stateColor = movementState ? STATE_COLOR[movementState] : "#6b7d9c";
   const stateGlyph = movementState ? STATE_GLYPH[movementState] : "·";
 
+  const batteryPct =
+    device.batteryLevel != null
+      ? Math.max(0, Math.min(100, Math.round(device.batteryLevel * 100)))
+      : null;
+  const batteryCharging = device.batteryState === 2;
+  const batteryColor =
+    batteryPct == null
+      ? "#6b7d9c"
+      : batteryPct <= 20
+        ? "#ef4444"
+        : batteryPct <= 40
+          ? "#f59e0b"
+          : "#22c55e";
+
   const positionResult = computePosition(device, stations);
 
   let nextStation = "—";
@@ -262,6 +276,9 @@ export function deriveTrain(
     errorCodes: errs.length ? errs.map((e) => e.code).join(" ") : "—",
     nextStation,
     staleSec,
+    batteryPct,
+    batteryCharging,
+    batteryColor,
   };
 }
 

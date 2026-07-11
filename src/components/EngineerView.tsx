@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Filter, TrainView } from "../types";
+import { BatteryBadge } from "./BatteryBadge";
 
 const GRID = "1.1fr .9fr .7fr 1.2fr .8fr .7fr 1.5fr";
 
@@ -207,6 +208,7 @@ function TableRow({
         <span className="font-mono" style={{ fontWeight: 600, color: "#dbe6f5" }}>
           {tr.no}
         </span>
+        <BatteryBadge tr={tr} fontSize={10} />
       </div>
       <div style={{ padding: "9px 12px", color: "#aeb9cc" }}>
         <span style={{ color: tr.lineColor }}>●</span> {tr.lineName}
@@ -280,6 +282,7 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
         <span className="font-mono" style={{ fontSize: 18, fontWeight: 600 }}>
           {engSel.no}
         </span>
+        <BatteryBadge tr={engSel} fontSize={12} />
         <div style={{ flex: 1 }} />
         <span
           style={{

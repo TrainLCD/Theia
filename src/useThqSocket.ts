@@ -22,24 +22,48 @@ export interface ThqCoords {
 export interface ThqLocationUpdate {
   id: string;
   type: "location_update";
+  session_id?: string;
   device: string;
   state: MovementState;
   station_id?: number | null;
   line_id: number;
   coords: ThqCoords;
   timestamp: number;
+  segment_id?: string | null;
+  from_station_id?: number | null;
+  to_station_id?: number | null;
+  battery_level?: number | null;
+  battery_state?: 0 | 1 | 2 | 3 | null;
 }
 
 export interface ThqLogEvent {
   id: string;
   type: "log";
-  device: string;
+  session_id?: string;
+  // ログは匿名送信が可能なため device が null になり得る。
+  device: string | null;
+  app_version?: string;
+  platform?: "ios" | "android" | "macos" | "unknown";
+  channel?: "production" | "canary";
   timestamp: number;
   log: {
     type: "system" | "app" | "client";
     level: "debug" | "info" | "warn" | "error";
     message: string;
   };
+}
+
+export interface ThqInteractionEvent {
+  id: string;
+  type: "interaction";
+  session_id?: string;
+  device: string | null;
+  app_version?: string;
+  platform?: "ios" | "android" | "macos" | "unknown";
+  channel?: "production" | "canary";
+  timestamp: number;
+  event_name: string;
+  properties: Record<string, string | number | boolean | null> | null;
 }
 
 export interface ThqErrorMessage {
@@ -72,6 +96,7 @@ export interface ThqLineMetaEvent {
 export type ThqMessage =
   | ThqLocationUpdate
   | ThqLogEvent
+  | ThqInteractionEvent
   | ThqErrorMessage
   | ThqProxyEvent
   | ThqLineMetaEvent;
@@ -121,6 +146,8 @@ function freshDevice(deviceId: string, ts: number): Device {
     lastLeftPct: null,
     travelDir: 0,
     headAngle: null,
+    batteryLevel: null,
+    batteryState: null,
   };
 }
 
@@ -189,6 +216,9 @@ function applyLocation(
     lastLeftPct: newLeftPct,
     travelDir,
     headAngle,
+    // null は「不明」なので直近の既知値を保持する。
+    batteryLevel: msg.battery_level ?? prev.batteryLevel,
+    batteryState: msg.battery_state ?? prev.batteryState,
   };
   devices.set(msg.device, next);
   return {
@@ -211,6 +241,20 @@ function applyLog(state: ThqDevicesState, msg: ThqLogEvent, ts: number): ThqDevi
   const code = synthesizeCode(msg.log.type, msg.log.level);
   const label = msg.log.message;
   const errTs = msg.timestamp || ts;
+
+  // 匿名ログ (device: null) は端末に紐付けられないため、アラートのみ記録する。
+  if (msg.device == null) {
+    const alert: AlertEntry = {
+      ts: errTs,
+      device: "匿名",
+      lineId: null,
+      lineColor: "#6b7d9c",
+      code,
+      label,
+      sev,
+    };
+    return { ...base, alerts: [alert, ...base.alerts].slice(0, ALERTS_CAP) };
+  }
 
   const devices = new Map(base.devices);
   const prev = devices.get(msg.device) ?? freshDevice(msg.device, errTs);
@@ -312,6 +356,7 @@ export function useThqDevices(path: string = "/api/thq-events"): ThqDevicesState
       setState((s) => {
         if (msg.type === "location_update") return applyLocation(s, msg, ts);
         if (msg.type === "log") return applyLog(s, msg, ts);
+        if (msg.type === "interaction") return { ...s, received: s.received + 1 };
         if (msg.type === "error")
           return { ...s, lastError: `${msg.error.type}: ${msg.error.reason}` };
         if (msg.type === "_proxy") return applyProxy(s, msg);

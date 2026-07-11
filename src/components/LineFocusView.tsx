@@ -1,4 +1,5 @@
 import type { LineView, TrainView, TravelDir } from "../types";
+import { BatteryBadge } from "./BatteryBadge";
 import { Dial } from "./Dial";
 
 function travelBorderRadius(dir: TravelDir, nose: number, tail: number): string {
@@ -380,6 +381,7 @@ function TrainCard({ tr, onSelect }: { tr: TrainView; onSelect: () => void }) {
         <span className="font-mono" style={{ fontSize: 13, fontWeight: 600 }}>
           {tr.no}
         </span>
+        <BatteryBadge tr={tr} />
         <div style={{ flex: 1 }} />
         <span
           style={{

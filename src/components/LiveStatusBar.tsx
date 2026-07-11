@@ -118,7 +118,7 @@ function formatLatest(s: ThqSocketState): string | null {
     return `LOC ${loc.device} · L${loc.line_id}${loc.station_id ? ` S${loc.station_id}` : ""} · ${loc.state} · ${acc} · ${spd}`;
   }
   if (log) {
-    return `LOG ${log.device} · ${log.log.level.toUpperCase()} · ${log.log.message}`;
+    return `LOG ${log.device ?? "匿名"} · ${log.log.level.toUpperCase()} · ${log.log.message}`;
   }
   return null;
 }

@@ -7,6 +7,7 @@ import type {
   TrainView,
   TravelDir,
 } from "../types";
+import { BatteryBadge } from "./BatteryBadge";
 import { Dial } from "./Dial";
 import { StationInfoCard } from "./StationInfoCard";
 
@@ -515,6 +516,7 @@ function SelectedDevicePanel({ sel }: { sel: TrainView }) {
         <span className="font-mono" style={{ fontSize: 15, fontWeight: 600 }}>
           {sel.no}
         </span>
+        <BatteryBadge tr={sel} />
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: sel.lineColor, fontWeight: 600 }}>
           ● {sel.lineName}

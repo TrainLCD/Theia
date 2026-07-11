@@ -7,11 +7,29 @@ const listeners = new Set<Listener>();
 const announcedLines = new Set<number>();
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectAttempts = 0;
+let warnedMissingToken = false;
 
 const THQ_URL = process.env.THQ_WS_URL ?? "wss://thq.trainlcd.app/ws";
 const THQ_TOKEN = process.env.THQ_WS_TOKEN;
 const THQ_SUBSCRIBE_DEVICE = process.env.THQ_SUBSCRIBE_DEVICE ?? "theia";
-const RECONNECT_MS = 5000;
+const RECONNECT_BASE_MS = 1000;
+const RECONNECT_MAX_MS = 30_000;
+
+// Upstream resends its ring buffer (default 1000 events) as a snapshot on every
+// reconnect, so events must be deduped by their server-assigned id before fanout.
+const seenEventIds = new Set<string>();
+const SEEN_IDS_CAP = 2000;
+
+function isDuplicateEvent(id: string): boolean {
+  if (seenEventIds.has(id)) return true;
+  seenEventIds.add(id);
+  if (seenEventIds.size > SEEN_IDS_CAP) {
+    const oldest = seenEventIds.values().next().value;
+    if (oldest !== undefined) seenEventIds.delete(oldest);
+  }
+  return false;
+}
 
 function broadcast(msg: unknown) {
   for (const l of listeners) {
@@ -49,6 +67,12 @@ function maybeAnnounceLine(lineId: number) {
 
 function connect() {
   if (ws) return;
+  if (!THQ_TOKEN && !warnedMissingToken) {
+    warnedMissingToken = true;
+    console.warn(
+      "[thq] THQ_WS_TOKEN is not set; the upstream only accepts the observer token and rejects the handshake with 401",
+    );
+  }
   const protocols = THQ_TOKEN ? ["thq", `thq-auth-${THQ_TOKEN}`] : ["thq"];
   let socket: WebSocket;
   try {
@@ -61,6 +85,7 @@ function connect() {
   ws = socket;
   socket.addEventListener("open", () => {
     console.log("[thq] upstream open", THQ_URL);
+    reconnectAttempts = 0;
     try {
       socket.send(JSON.stringify({ type: "subscribe", device: THQ_SUBSCRIBE_DEVICE }));
     } catch (e) {
@@ -73,7 +98,9 @@ function connect() {
       const msg = JSON.parse(typeof ev.data === "string" ? ev.data : String(ev.data)) as {
         type?: string;
         line_id?: number;
+        id?: string;
       };
+      if (typeof msg.id === "string" && isDuplicateEvent(msg.id)) return;
       if (msg.type === "location_update" && typeof msg.line_id === "number") {
         maybeAnnounceLine(msg.line_id);
       }
@@ -95,10 +122,14 @@ function connect() {
 
 function scheduleReconnect() {
   if (reconnectTimer) return;
+  // No retry cap: this proxy is the app's only upstream link, so it must keep
+  // trying; the exponential backoff tops out at RECONNECT_MAX_MS.
+  const delay = Math.min(RECONNECT_BASE_MS * 2 ** reconnectAttempts, RECONNECT_MAX_MS);
+  reconnectAttempts += 1;
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     connect();
-  }, RECONNECT_MS);
+  }, delay);
 }
 
 export function subscribeToThq(listener: Listener): () => void {

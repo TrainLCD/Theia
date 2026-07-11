@@ -28,6 +28,8 @@ export interface Device {
   lastLeftPct: number | null;
   travelDir: TravelDir;
   headAngle: number | null;
+  batteryLevel: number | null;
+  batteryState: 0 | 1 | 2 | 3 | null;
 }
 
 export interface AlertEntry {
@@ -84,6 +86,9 @@ export interface TrainView {
   errorCodes: string;
   nextStation: string;
   staleSec: number;
+  batteryPct: number | null;
+  batteryCharging: boolean;
+  batteryColor: string;
 }
 
 export interface LineMeta {
