@@ -163,10 +163,11 @@ function appendBatterySample(
   history: Map<string, BatterySample[]>,
   msg: ThqLocationUpdate,
   ts: number,
+  batteryState: Device["batteryState"],
 ): Map<string, BatterySample[]> | null {
   if (msg.battery_level == null) return null;
   const pct = Math.max(0, Math.min(100, Math.round(msg.battery_level * 100)));
-  const charging = msg.battery_state === 2;
+  const charging = batteryState === 2;
   const sampleTs = msg.timestamp || ts;
   const prev = history.get(msg.device) ?? [];
   const last = prev[prev.length - 1];
@@ -255,7 +256,7 @@ function applyLocation(
     batteryState: msg.battery_state ?? prev.batteryState,
   };
   devices.set(msg.device, next);
-  const batteryHistory = appendBatterySample(state.batteryHistory, msg, ts);
+  const batteryHistory = appendBatterySample(state.batteryHistory, msg, ts, next.batteryState);
   return {
     ...state,
     received: state.received + 1,

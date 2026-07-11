@@ -98,17 +98,6 @@ export function BatteryView({ history, views, now }: BatteryViewProps) {
   const [windowMs, setWindowMs] = useState<number | null>(60 * 60_000);
   const [hoverTs, setHoverTs] = useState<number | null>(null);
 
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w) setWidth(w);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
   const allSeries: Series[] = useMemo(
     () =>
       Array.from(history.entries()).map(([device, samples], i) => ({
@@ -125,6 +114,18 @@ export function BatteryView({ history, views, now }: BatteryViewProps) {
   const dataMin = Math.min(...plotted.map((s) => s.samples[0]?.ts ?? Infinity));
   const dataMax = Math.max(...plotted.map((s) => s.samples[s.samples.length - 1]?.ts ?? -Infinity));
   const hasData = now > 0 && Number.isFinite(dataMin) && Number.isFinite(dataMax);
+
+  // チャート div は hasData 時のみマウントされるため、データ到着後に観測し直す。
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w) setWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hasData]);
 
   let tMax = windowMs != null ? now : dataMax;
   let tMin = windowMs != null ? now - windowMs : dataMin;
@@ -238,7 +239,10 @@ export function BatteryView({ history, views, now }: BatteryViewProps) {
             return (
               <button
                 key={p.label}
-                onClick={() => setWindowMs(p.ms)}
+                onClick={() => {
+                  setWindowMs(p.ms);
+                  setHoverTs(null);
+                }}
                 style={{
                   background: active ? "#1a2333" : "transparent",
                   border: `1px solid ${active ? "#2c3f61" : "#1b2740"}`,
@@ -330,9 +334,13 @@ export function BatteryView({ history, views, now }: BatteryViewProps) {
             ref={wrapRef}
             tabIndex={0}
             onKeyDown={(e) => {
-              if (e.key === "ArrowLeft") stepHover(-1);
-              else if (e.key === "ArrowRight") stepHover(1);
-              else if (e.key === "Escape") setHoverTs(null);
+              if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                stepHover(-1);
+              } else if (e.key === "ArrowRight") {
+                e.preventDefault();
+                stepHover(1);
+              } else if (e.key === "Escape") setHoverTs(null);
             }}
             style={{ position: "relative", outlineColor: "#2c3f61" }}
           >
