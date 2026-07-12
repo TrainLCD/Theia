@@ -1,3 +1,4 @@
+import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { LineMeta, MapData, MapLineView, MapStation, MapTrainView, TrainView } from "../types";
 import { BatteryBadge } from "./BatteryBadge";
@@ -32,6 +33,17 @@ export interface MapViewProps {
 }
 
 export function MapView({ data, sel, onSelectTrain }: MapViewProps) {
+  const [hiddenLineIds, setHiddenLineIds] = useState<Set<number>>(() => new Set());
+
+  const toggleLine = (id: number) => {
+    setHiddenLineIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <div
       style={{
@@ -43,8 +55,13 @@ export function MapView({ data, sel, onSelectTrain }: MapViewProps) {
     >
       <GridBackground />
       <TopLeftLabel />
-      <Canvas data={data} selectedId={sel?.id ?? null} onSelectTrain={onSelectTrain} />
-      <Legend lines={data.lines} />
+      <Canvas
+        data={data}
+        selectedId={sel?.id ?? null}
+        onSelectTrain={onSelectTrain}
+        hiddenLineIds={hiddenLineIds}
+      />
+      <Legend lines={data.lines} hiddenLineIds={hiddenLineIds} onToggleLine={toggleLine} />
       {sel && <SelectedCard sel={sel} />}
       {data.lines.length === 0 && <Empty />}
     </div>
@@ -83,10 +100,12 @@ function Canvas({
   data,
   selectedId,
   onSelectTrain,
+  hiddenLineIds,
 }: {
   data: MapData;
   selectedId: string | null;
   onSelectTrain: (id: string) => void;
+  hiddenLineIds: Set<number>;
 }) {
   const [hoverKey, setHoverKey] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -201,6 +220,11 @@ function Canvas({
   const canPan = zoom > 1;
   const cursor = grabbing ? "grabbing" : canPan ? "grab" : "default";
 
+  const visibleLines = data.lines.filter((line) => !hiddenLineIds.has(line.meta.id));
+  const visibleTrains = data.trains.filter(
+    (tr) => tr.hasMapPosition && (tr.lineId == null || !hiddenLineIds.has(tr.lineId)),
+  );
+
   return (
     <div
       ref={containerRef}
@@ -234,7 +258,7 @@ function Canvas({
             overflow: "visible",
           }}
         >
-          {data.lines.map((line) => (
+          {visibleLines.map((line) => (
             <polyline
               key={line.meta.id}
               points={line.pointsStr}
@@ -248,7 +272,7 @@ function Canvas({
             />
           ))}
         </svg>
-        {data.lines.flatMap((line) =>
+        {visibleLines.flatMap((line) =>
           line.stations.map((st) => {
             const key = `${line.meta.id}-${st.id}`;
             return (
@@ -263,18 +287,16 @@ function Canvas({
             );
           }),
         )}
-        {data.trains
-          .filter((tr) => tr.hasMapPosition)
-          .map((tr) => (
-            <TrainMarker
-              key={tr.id}
-              tr={tr}
-              zoom={zoom}
-              selected={tr.id === selectedId}
-              onClick={() => onSelectTrain(tr.id)}
-            />
-          ))}
-        {data.lines.flatMap((line) =>
+        {visibleTrains.map((tr) => (
+          <TrainMarker
+            key={tr.id}
+            tr={tr}
+            zoom={zoom}
+            selected={tr.id === selectedId}
+            onClick={() => onSelectTrain(tr.id)}
+          />
+        ))}
+        {visibleLines.flatMap((line) =>
           line.stations.map((st) => {
             const key = `${line.meta.id}-${st.id}`;
             if (hoverKey !== key) return null;
@@ -434,7 +456,15 @@ function TrainMarker({
   );
 }
 
-function Legend({ lines }: { lines: MapLineView[] }) {
+function Legend({
+  lines,
+  hiddenLineIds,
+  onToggleLine,
+}: {
+  lines: MapLineView[];
+  hiddenLineIds: Set<number>;
+  onToggleLine: (id: number) => void;
+}) {
   if (lines.length === 0) return null;
   return (
     <div
@@ -452,41 +482,94 @@ function Legend({ lines }: { lines: MapLineView[] }) {
         overflowY: "auto",
       }}
     >
-      <div style={{ fontSize: 10, color: "#6b7d9c", letterSpacing: ".1em", marginBottom: 9 }}>
+      <div style={{ fontSize: 10, color: "#6b7d9c", letterSpacing: ".1em", marginBottom: 3 }}>
         路線
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+      <div style={{ fontSize: 9, color: "#51617a", marginBottom: 9 }}>クリックで表示 / 非表示</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {lines.map((ln) => (
-          <div key={ln.meta.id} style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <span
-              style={{
-                width: 18,
-                height: 3,
-                borderRadius: 2,
-                background: ln.meta.color,
-                flex: "none",
-              }}
-            />
-            <span
-              style={{
-                fontSize: 11.5,
-                color: "#cdd8e8",
-                flex: 1,
-                minWidth: 0,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {ln.meta.name}
-            </span>
-            <span className="font-mono" style={{ fontSize: 10.5, color: "#6b7d9c" }}>
-              {ln.count}
-            </span>
-          </div>
+          <LegendRow
+            key={ln.meta.id}
+            line={ln}
+            hidden={hiddenLineIds.has(ln.meta.id)}
+            onToggle={() => onToggleLine(ln.meta.id)}
+          />
         ))}
       </div>
     </div>
+  );
+}
+
+function LegendRow({
+  line,
+  hidden,
+  onToggle,
+}: {
+  line: MapLineView;
+  hidden: boolean;
+  onToggle: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={!hidden}
+      title={hidden ? `${line.meta.name} を表示` : `${line.meta.name} を非表示`}
+      onClick={onToggle}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 9,
+        width: "100%",
+        padding: "4px 6px",
+        margin: 0,
+        border: "none",
+        borderRadius: 6,
+        background: hover ? "rgba(120,150,200,.09)" : "transparent",
+        cursor: "pointer",
+        textAlign: "left",
+        opacity: hidden ? 0.42 : 1,
+        transition: "opacity .12s, background .12s",
+      }}
+    >
+      <span
+        style={{
+          width: 18,
+          height: 3,
+          borderRadius: 2,
+          background: line.meta.color,
+          flex: "none",
+        }}
+      />
+      <span
+        style={{
+          fontSize: 11.5,
+          color: "#cdd8e8",
+          flex: 1,
+          minWidth: 0,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          textDecoration: hidden ? "line-through" : "none",
+        }}
+      >
+        {line.meta.name}
+      </span>
+      <span className="font-mono" style={{ fontSize: 10.5, color: "#6b7d9c", flex: "none" }}>
+        {line.count}
+      </span>
+      {hidden ? (
+        <EyeOff size={13} color="#6b7d9c" style={{ flex: "none" }} />
+      ) : (
+        <Eye size={13} color="#8597b3" style={{ flex: "none" }} />
+      )}
+    </button>
   );
 }
 
