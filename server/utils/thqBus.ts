@@ -41,7 +41,7 @@ function broadcast(msg: unknown) {
   }
 }
 
-function lineMetaMsg(meta: LineMeta) {
+export function lineMetaMsg(meta: LineMeta) {
   return {
     type: "_line_meta" as const,
     id: meta.id,
