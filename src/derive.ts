@@ -465,8 +465,12 @@ function computeVisibleViewBox(
     add(tr.mapX, tr.mapY);
   }
   if (minX === Infinity) return null;
-  const padX = Math.max((maxX - minX) * 0.06, 0.001);
-  const padY = Math.max((maxY - minY) * 0.06, 0.001);
+  // computeMapBounds の最小パディング 0.001 は緯度経度単位なので、
+  // data.bounds のスパンで正規化座標(0〜100)へ換算して揃える。
+  const minPadX = data.bounds ? (0.001 / (data.bounds.maxLon - data.bounds.minLon)) * 100 : 0.001;
+  const minPadY = data.bounds ? (0.001 / (data.bounds.maxLat - data.bounds.minLat)) * 100 : 0.001;
+  const padX = Math.max((maxX - minX) * 0.06, minPadX);
+  const padY = Math.max((maxY - minY) * 0.06, minPadY);
   return { minX: minX - padX, maxX: maxX + padX, minY: minY - padY, maxY: maxY + padY };
 }
 
