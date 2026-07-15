@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useViewSetting } from "../useViewSetting";
 import type { ThqInteractionEvent } from "../useThqSocket";
 
 export interface InteractionsViewProps {
@@ -57,9 +58,15 @@ function rankCounts(keys: string[]): { key: string; count: number }[] {
 }
 
 export function InteractionsView({ interactions, now }: InteractionsViewProps) {
-  const [windowMs, setWindowMs] = useState<number | null>(null);
-  const [eventFilter, setEventFilter] = useState<string | null>(null);
-  const [deviceFilter, setDeviceFilter] = useState<string | null>(null);
+  const [windowMs, setWindowMs] = useViewSetting<number | null>("interactions.windowMs", null);
+  const [eventFilter, setEventFilter] = useViewSetting<string | null>(
+    "interactions.eventFilter",
+    null,
+  );
+  const [deviceFilter, setDeviceFilter] = useViewSetting<string | null>(
+    "interactions.deviceFilter",
+    null,
+  );
 
   const inWindow = useMemo(() => {
     const tMin = windowMs != null ? now - windowMs : -Infinity;

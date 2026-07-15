@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 import type { MapData, MapLineView, MapTrainView } from "../types";
+import { ViewSettingsProvider } from "../useViewSetting";
 import { MapView } from "./MapView";
 
 function line(id: number, name: string, color: string): MapLineView {
@@ -78,6 +79,29 @@ describe("MapView 路線の表示切替", () => {
     fireEvent.click(firstSwitch());
     expect(firstSwitch().getAttribute("aria-checked")).toBe("true");
     expect(container.querySelectorAll("polyline")).toHaveLength(2);
+  });
+});
+
+describe("MapView 設定の保持", () => {
+  // タブ切替(view の条件付きレンダリング)による MapView のアンマウントを模す。
+  function Harness({ showMap }: { showMap: boolean }) {
+    return (
+      <ViewSettingsProvider>
+        {showMap && <MapView data={makeData()} sel={null} onSelectTrain={() => {}} />}
+      </ViewSettingsProvider>
+    );
+  }
+
+  it("タブ切替でアンマウントされても路線の表示/非表示を保持する", () => {
+    const { rerender, getAllByRole, container } = render(<Harness showMap />);
+    fireEvent.click(getAllByRole("switch")[0]);
+    expect(container.querySelectorAll("polyline")).toHaveLength(1);
+
+    rerender(<Harness showMap={false} />);
+    rerender(<Harness showMap />);
+
+    expect(getAllByRole("switch")[0].getAttribute("aria-checked")).toBe("false");
+    expect(container.querySelectorAll("polyline")).toHaveLength(1);
   });
 });
 

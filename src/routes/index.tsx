@@ -12,6 +12,7 @@ import { TabNav } from "#/components/TabNav";
 import { buildLineViews, buildMapData, computeKpi, deriveTrain, formatAlerts } from "#/derive";
 import type { Filter, View } from "#/types";
 import { useThqDevices } from "#/useThqSocket";
+import { ViewSettingsProvider } from "#/useViewSetting";
 import { formatClock } from "#/utils";
 
 const THQ_EVENTS_PATH = "/api/thq-events";
@@ -54,68 +55,74 @@ function Home() {
     now === 0 ? { clock: "--:--:--", dateStr: "--月--日" } : formatClock(now);
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        width: "100vw",
-        display: "flex",
-        flexDirection: "column",
-        background: "#080b12",
-        color: "#e6edf7",
-        overflow: "hidden",
-        position: "relative",
-      }}
-    >
-      <Header
-        kpis={{
-          running: kpi.running,
-          total: kpi.total,
-          alerts: kpi.alerts,
-          avgMeters: kpi.avgMeters,
-          avgSpeed: kpi.avgSpeed,
+    <ViewSettingsProvider>
+      <div
+        style={{
+          height: "100vh",
+          width: "100vw",
+          display: "flex",
+          flexDirection: "column",
+          background: "#080b12",
+          color: "#e6edf7",
+          overflow: "hidden",
+          position: "relative",
         }}
-        clock={clock}
-        dateStr={dateStr}
-      />
-      <TabNav
-        view={view}
-        onChangeView={setView}
-        counts={{ normal: kpi.normal, warn: kpi.warn, err: kpi.err }}
-      />
-      <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-        {view === "network" && (
-          <NetworkView
-            linesView={linesView}
-            sel={sel}
-            alerts={formatAlerts(alerts, lineMetadata)}
-            onSelectTrain={setSelectedId}
-          />
-        )}
-        {view === "map" && <MapView data={mapData} sel={sel} onSelectTrain={setSelectedId} />}
-        {view === "line" && (
-          <LineFocusView
-            linesView={linesView}
-            activeLine={activeLine}
-            onSelectLine={setActiveLineId}
-            onSelectTrain={setSelectedId}
-          />
-        )}
-        {view === "engineer" && (
-          <EngineerView
-            table={table}
-            worst={worst}
-            engSel={engSel}
-            filter={filter}
-            onFilter={setFilter}
-            onSelectTrain={setSelectedId}
-            selectedId={selectedId}
-            counts={{ total: kpi.total, alerts: kpi.alerts, err: kpi.err, commBad: kpi.commBad }}
-          />
-        )}
-        {view === "interactions" && <InteractionsView interactions={thq.interactions} now={now} />}
-        {view === "battery" && <BatteryView history={thq.batteryHistory} views={views} now={now} />}
+      >
+        <Header
+          kpis={{
+            running: kpi.running,
+            total: kpi.total,
+            alerts: kpi.alerts,
+            avgMeters: kpi.avgMeters,
+            avgSpeed: kpi.avgSpeed,
+          }}
+          clock={clock}
+          dateStr={dateStr}
+        />
+        <TabNav
+          view={view}
+          onChangeView={setView}
+          counts={{ normal: kpi.normal, warn: kpi.warn, err: kpi.err }}
+        />
+        <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+          {view === "network" && (
+            <NetworkView
+              linesView={linesView}
+              sel={sel}
+              alerts={formatAlerts(alerts, lineMetadata)}
+              onSelectTrain={setSelectedId}
+            />
+          )}
+          {view === "map" && <MapView data={mapData} sel={sel} onSelectTrain={setSelectedId} />}
+          {view === "line" && (
+            <LineFocusView
+              linesView={linesView}
+              activeLine={activeLine}
+              onSelectLine={setActiveLineId}
+              onSelectTrain={setSelectedId}
+            />
+          )}
+          {view === "engineer" && (
+            <EngineerView
+              table={table}
+              worst={worst}
+              engSel={engSel}
+              filter={filter}
+              onFilter={setFilter}
+              onSelectTrain={setSelectedId}
+              selectedId={selectedId}
+              counts={{ total: kpi.total, alerts: kpi.alerts, err: kpi.err, commBad: kpi.commBad }}
+            />
+          )}
+          {view === "interactions" && (
+            <InteractionsView interactions={thq.interactions} now={now} />
+          )}
+          {view === "battery" && (
+            <BatteryView history={thq.batteryHistory} views={views} now={now} />
+          )}
+        </div>
+        <LiveStatusBar url={THQ_EVENTS_PATH} socket={thq} />
       </div>
-      <LiveStatusBar url={THQ_EVENTS_PATH} socket={thq} />
-    </div>
+    </ViewSettingsProvider>
   );
 }
