@@ -1,10 +1,11 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { refitMapData } from "../derive";
 import type { LineMeta, MapData, MapLineView, MapStation, MapTrainView, TrainView } from "../types";
 import { BatteryBadge } from "./BatteryBadge";
 import { StationInfoCard } from "./StationInfoCard";
 
-const MIN_ZOOM = 1;
+const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 8;
 const ZOOM_STEP = 1.2;
 const WHEEL_STEP = 1.15;
@@ -20,6 +21,11 @@ function clampZoom(z: number) {
 }
 
 function clampPan(p: Pan, z: number, w: number, h: number): Pan {
+  // ズームアウト時（z < 1）はコンテンツが枠より小さくなるため、
+  // 左上に張り付かないよう中央へ固定する。
+  if (z < 1) {
+    return { x: (w * (1 - z)) / 2, y: (h * (1 - z)) / 2 };
+  }
   return {
     x: Math.min(0, Math.max(-w * (z - 1), p.x)),
     y: Math.min(0, Math.max(-h * (z - 1), p.y)),
@@ -44,6 +50,9 @@ export function MapView({ data, sel, onSelectTrain }: MapViewProps) {
     });
   };
 
+  // 等倍(1x)の表示範囲は非表示路線を除いた可視要素だけで決める。
+  const fitted = refitMapData(data, hiddenLineIds);
+
   return (
     <div
       style={{
@@ -56,7 +65,7 @@ export function MapView({ data, sel, onSelectTrain }: MapViewProps) {
       <GridBackground />
       <TopLeftLabel />
       <Canvas
-        data={data}
+        data={fitted}
         selectedId={sel?.id ?? null}
         onSelectTrain={onSelectTrain}
         hiddenLineIds={hiddenLineIds}
