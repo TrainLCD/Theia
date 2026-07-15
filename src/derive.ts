@@ -439,6 +439,63 @@ export function buildMapData(
   return { lines, trains, bounds };
 }
 
+// projectGeo は線形写像なので、投影済みの % 座標を可視要素の範囲で再正規化すれば、
+// 地理座標から bounds を計算し直すのと同じ結果になる。パディング率は computeMapBounds と揃える。
+function computeVisibleViewBox(
+  data: MapData,
+  hiddenLineIds: ReadonlySet<number>,
+): { minX: number; maxX: number; minY: number; maxY: number } | null {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  const add = (x: number, y: number) => {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  };
+  for (const line of data.lines) {
+    if (hiddenLineIds.has(line.meta.id)) continue;
+    for (const st of line.stations) add(st.x, st.y);
+  }
+  for (const tr of data.trains) {
+    if (!tr.hasMapPosition) continue;
+    if (tr.lineId != null && hiddenLineIds.has(tr.lineId)) continue;
+    add(tr.mapX, tr.mapY);
+  }
+  if (minX === Infinity) return null;
+  // computeMapBounds の最小パディング 0.001 は緯度経度単位なので、
+  // data.bounds のスパンで正規化座標(0〜100)へ換算して揃える。
+  const minPadX = data.bounds ? (0.001 / (data.bounds.maxLon - data.bounds.minLon)) * 100 : 0.001;
+  const minPadY = data.bounds ? (0.001 / (data.bounds.maxLat - data.bounds.minLat)) * 100 : 0.001;
+  const padX = Math.max((maxX - minX) * 0.06, minPadX);
+  const padY = Math.max((maxY - minY) * 0.06, minPadY);
+  return { minX: minX - padX, maxX: maxX + padX, minY: minY - padY, maxY: maxY + padY };
+}
+
+export function refitMapData(data: MapData, hiddenLineIds: ReadonlySet<number>): MapData {
+  if (hiddenLineIds.size === 0) return data;
+  const box = computeVisibleViewBox(data, hiddenLineIds);
+  if (!box) return data;
+  const xSpread = box.maxX - box.minX;
+  const ySpread = box.maxY - box.minY;
+  const fx = (x: number) => (xSpread > 0 ? ((x - box.minX) / xSpread) * 100 : 50);
+  const fy = (y: number) => (ySpread > 0 ? ((y - box.minY) / ySpread) * 100 : 50);
+  const lines = data.lines.map((line) => {
+    const stations = line.stations.map((st) => ({ ...st, x: fx(st.x), y: fy(st.y) }));
+    return {
+      ...line,
+      stations,
+      pointsStr: stations.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" "),
+    };
+  });
+  const trains = data.trains.map((tr) =>
+    tr.hasMapPosition ? { ...tr, mapX: fx(tr.mapX), mapY: fy(tr.mapY) } : tr,
+  );
+  return { ...data, lines, trains };
+}
+
 export function formatAlerts(
   alerts: AlertEntry[],
   externalLines?: Map<number, ExternalLineMeta>,

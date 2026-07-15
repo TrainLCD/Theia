@@ -80,3 +80,35 @@ describe("MapView 路線の表示切替", () => {
     expect(container.querySelectorAll("polyline")).toHaveLength(2);
   });
 });
+
+describe("MapView 等倍の再フィット", () => {
+  it("路線を非表示にすると、表示中の要素だけで等倍の表示範囲を再計算する", () => {
+    const { container, getAllByRole, getByTitle } = render(
+      <MapView data={makeData()} sel={null} onSelectTrain={() => {}} />,
+    );
+
+    fireEvent.click(getAllByRole("switch")[0]);
+
+    // 可視要素は中央線の駅 (10,10) と T2 (50,50)。
+    // 範囲 10〜50 に 6% パディングを加えて 0〜100 へ再正規化される。
+    const poly = container.querySelector("polyline");
+    expect(poly?.getAttribute("points")).toBe("5.36,5.36");
+    const t2 = getByTitle(/^T2/);
+    expect(Number.parseFloat(t2.style.left)).toBeCloseTo(94.64, 2);
+    expect(Number.parseFloat(t2.style.top)).toBeCloseTo(94.64, 2);
+  });
+
+  it("再表示すると元の座標に戻る", () => {
+    const { container, getAllByRole } = render(
+      <MapView data={makeData()} sel={null} onSelectTrain={() => {}} />,
+    );
+    const firstSwitch = () => getAllByRole("switch")[0];
+
+    fireEvent.click(firstSwitch());
+    fireEvent.click(firstSwitch());
+
+    const polys = container.querySelectorAll("polyline");
+    expect(polys).toHaveLength(2);
+    expect(polys[0]?.getAttribute("points")).toBe("0,0 10,10");
+  });
+});
