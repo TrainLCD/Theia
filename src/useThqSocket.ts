@@ -17,6 +17,7 @@ export interface ThqCoords {
   latitude: number;
   longitude: number;
   accuracy?: number | null;
+  // km/h。送信側 (MobileApp の useTelemetrySender) が m/s から変換済みのため、受信側で再変換しない。
   speed?: number | null;
 }
 
