@@ -262,8 +262,8 @@ export function deriveTrain(
         : st === "error"
           ? "rgba(239,68,68,.5)"
           : "rgba(245,158,11,.45)",
-    speed: Math.round(device.speed * 3.6),
-    speedPct: Math.min(100, Math.round(((device.speed * 3.6) / ASSUMED_MAX_SPEED) * 100)),
+    speed: Math.round(device.speed),
+    speedPct: Math.min(100, Math.round((device.speed / ASSUMED_MAX_SPEED) * 100)),
     conf,
     confColor: cc,
     meters,
