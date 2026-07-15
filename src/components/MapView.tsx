@@ -1,6 +1,7 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { refitMapData } from "../derive";
+import { useViewSetting } from "../useViewSetting";
 import type { LineMeta, MapData, MapLineView, MapStation, MapTrainView, TrainView } from "../types";
 import { BatteryBadge } from "./BatteryBadge";
 import { StationInfoCard } from "./StationInfoCard";
@@ -39,7 +40,10 @@ export interface MapViewProps {
 }
 
 export function MapView({ data, sel, onSelectTrain }: MapViewProps) {
-  const [hiddenLineIds, setHiddenLineIds] = useState<Set<number>>(() => new Set());
+  const [hiddenLineIds, setHiddenLineIds] = useViewSetting<Set<number>>(
+    "map.hiddenLineIds",
+    () => new Set(),
+  );
 
   const toggleLine = (id: number) => {
     setHiddenLineIds((prev) => {
@@ -118,8 +122,8 @@ function Canvas({
 }) {
   const [hoverKey, setHoverKey] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState<Pan>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useViewSetting("map.zoom", 1);
+  const [pan, setPan] = useViewSetting<Pan>("map.pan", { x: 0, y: 0 });
   const zoomRef = useRef(zoom);
   const panRef = useRef(pan);
   zoomRef.current = zoom;

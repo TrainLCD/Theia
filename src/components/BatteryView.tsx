@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useViewSetting } from "../useViewSetting";
 import type { BatterySample, TrainView } from "../types";
 
 export interface BatteryViewProps {
@@ -95,7 +96,7 @@ function thin(samples: BatterySample[]): BatterySample[] {
 export function BatteryView({ history, views, now }: BatteryViewProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
-  const [windowMs, setWindowMs] = useState<number | null>(60 * 60_000);
+  const [windowMs, setWindowMs] = useViewSetting<number | null>("battery.windowMs", 60 * 60_000);
   const [hoverTs, setHoverTs] = useState<number | null>(null);
 
   const allSeries: Series[] = useMemo(
