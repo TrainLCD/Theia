@@ -374,6 +374,7 @@ function TrainCard({ tr, onSelect }: { tr: TrainView; onSelect: () => void }) {
             background: tr.typeColor,
             padding: "2px 7px",
             borderRadius: 4,
+            whiteSpace: "nowrap",
           }}
         >
           {tr.type}

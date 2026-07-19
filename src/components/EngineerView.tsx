@@ -201,6 +201,7 @@ function TableRow({
             background: tr.typeColor,
             padding: "1px 5px",
             borderRadius: 3,
+            whiteSpace: "nowrap",
           }}
         >
           {tr.type}
@@ -275,6 +276,7 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
             background: engSel.typeColor,
             padding: "2px 7px",
             borderRadius: 4,
+            whiteSpace: "nowrap",
           }}
         >
           {engSel.type}
