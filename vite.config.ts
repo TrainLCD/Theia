@@ -29,7 +29,11 @@ const config = defineConfig({
   },
   plugins: lazyPlugins(() => [
     devtools(),
-    nitro({ serverDir: "server", rollupConfig: { external: [/^@sentry\//] } }),
+    nitro({
+      serverDir: "server",
+      ignore: ["**/*.test.ts", "**/*.spec.ts"],
+      rollupConfig: { external: [/^@sentry\//] },
+    }),
     tailwindcss(),
     tanstackStart(),
     viteReact(),
