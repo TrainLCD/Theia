@@ -509,6 +509,7 @@ function SelectedDevicePanel({ sel }: { sel: TrainView }) {
             background: sel.typeColor,
             padding: "2px 7px",
             borderRadius: 4,
+            whiteSpace: "nowrap",
           }}
         >
           {sel.type}
