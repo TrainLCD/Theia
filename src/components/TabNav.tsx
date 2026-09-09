@@ -27,49 +27,49 @@ export function TabNav({ view, onChangeView, counts }: TabNavProps) {
         color={navColor("network")}
         onClick={() => onChangeView("network")}
       >
-        ネットワーク監視
+        端末一覧
       </NavButton>
       <NavButton
         active={view === "map"}
         color={navColor("map")}
         onClick={() => onChangeView("map")}
       >
-        マップ
+        路線マップ
       </NavButton>
       <NavButton
         active={view === "line"}
         color={navColor("line")}
         onClick={() => onChangeView("line")}
       >
-        路線フォーカス
+        路線別詳細
       </NavButton>
       <NavButton
         active={view === "engineer"}
         color={navColor("engineer")}
         onClick={() => onChangeView("engineer")}
       >
-        エラー解析
+        端末診断
       </NavButton>
       <NavButton
         active={view === "interactions"}
         color={navColor("interactions")}
         onClick={() => onChangeView("interactions")}
       >
-        インタラクション
+        操作ログ
       </NavButton>
       <NavButton
         active={view === "battery"}
         color={navColor("battery")}
         onClick={() => onChangeView("battery")}
       >
-        バッテリ
+        バッテリー残量
       </NavButton>
       <NavButton
         active={view === "freeze"}
         color={navColor("freeze")}
         onClick={() => onChangeView("freeze")}
       >
-        現在地凍結
+        位置ログ欠落
       </NavButton>
       <div style={{ flex: 1 }} />
       <div

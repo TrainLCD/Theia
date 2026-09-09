@@ -40,7 +40,7 @@ export function LineFocusView({
         <>
           <LineMap activeLine={activeLine} onSelectTrain={onSelectTrain} />
           <div style={{ fontSize: 12, fontWeight: 600, color: "#8597b3", letterSpacing: ".14em" }}>
-            動作中デバイス — 速度 / 位置情報精度
+            動作中端末 — 速度 / 測位精度
           </div>
           <div
             style={{
@@ -63,7 +63,7 @@ export function LineFocusView({
                   textAlign: "center",
                 }}
               >
-                この路線のデバイスはまだ受信していません
+                この路線の端末は未受信
               </div>
             )}
           </div>
@@ -80,7 +80,7 @@ export function LineFocusView({
             lineHeight: 1.7,
           }}
         >
-          THQ からデバイスイベントを待機しています…
+          端末イベント受信待ち
         </div>
       )}
     </div>
@@ -162,8 +162,7 @@ function LineMap({
         />
         <span style={{ fontSize: 17, fontWeight: 700 }}>{activeLine.meta.name}</span>
         <span className="font-mono" style={{ fontSize: 11, color: "#51617a" }}>
-          {activeLine.trainCount} デバイス
-          {hasStations ? ` · ${activeLine.stations.length}駅` : ""}
+          {activeLine.trainCount} 台{hasStations ? ` · ${activeLine.stations.length}駅` : ""}
           {activeLine.alertCount > 0 ? ` · ⚠ ${activeLine.alertCount}` : ""}
         </span>
       </div>
@@ -205,7 +204,7 @@ function LineMap({
         </div>
       ) : (
         <div style={{ color: "#51617a", fontSize: 11, padding: "12px 0 18px" }}>
-          駅情報を読込中…
+          駅情報を読み込み中…
         </div>
       )}
     </div>

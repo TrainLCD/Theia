@@ -8,7 +8,7 @@ export function BatteryBadge({ tr, fontSize = 11 }: { tr: BatteryInfo; fontSize?
   const w = h * 2;
   return (
     <span
-      title={`バッテリ ${tr.batteryPct}%${tr.batteryCharging ? " (充電中)" : ""}`}
+      title={`バッテリー ${tr.batteryPct}%${tr.batteryCharging ? " (充電中)" : ""}`}
       style={{ display: "inline-flex", alignItems: "center", gap: 4, flex: "none" }}
     >
       <span style={{ display: "inline-flex", alignItems: "center" }}>

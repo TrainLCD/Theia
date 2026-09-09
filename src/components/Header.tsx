@@ -24,7 +24,7 @@ export function Header({ kpis, clock, dateStr }: HeaderProps) {
       <Brand />
       <div style={{ width: 1, height: 30, background: "#1e2c44" }} />
       <div style={{ display: "flex", gap: 26, alignItems: "center" }}>
-        <KpiBlock label="動作中 / 全デバイス">
+        <KpiBlock label="動作中 / 全端末">
           <span className="font-mono" style={{ color: "#22c55e", fontSize: 19, fontWeight: 600 }}>
             {kpis.running}
           </span>
@@ -39,7 +39,7 @@ export function Header({ kpis, clock, dateStr }: HeaderProps) {
             <span style={{ fontSize: 11, color: "#6b7d9c" }}> 件</span>
           </span>
         </KpiBlock>
-        <KpiBlock label="平均位置情報精度">
+        <KpiBlock label="平均測位精度">
           <span className="font-mono" style={{ color: "#e6edf7", fontSize: 19, fontWeight: 600 }}>
             {kpis.avgMeters}
             <span style={{ fontSize: 11, color: "#6b7d9c" }}> m</span>

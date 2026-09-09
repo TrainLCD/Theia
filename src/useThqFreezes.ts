@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ThqChannel, ThqPlatform } from "./useThqSocket";
 
-// THQ の現在地凍結検出 (locationFreezes / locationFreezeSessions / locationFreezeSummary)
+// THQ の位置ログ欠落検出 (locationFreezes / locationFreezeSessions / locationFreezeSummary)
 // のレスポンス。サーバー側 (server/utils/thqFreeze.ts) がこの型で返す。
 
 export interface FreezeCoords {
@@ -32,7 +32,7 @@ export interface FreezeRow {
   aliveEventCount: number;
 }
 
-/** セッション 1 件。凍結 0 件のセッションも含まれる。 */
+/** セッション 1 件。欠落 0 件のセッションも含まれる。 */
 export interface FreezeSessionRow {
   sessionId: string;
   device: string;
@@ -49,7 +49,7 @@ export interface FreezeSessionRow {
   totalGapMs: number;
 }
 
-/** 路線・区間・端末・ビルド別の集計。凍結 0 件のグループも含まれる。 */
+/** 路線・区間・端末・ビルド別の集計。欠落 0 件のグループも含まれる。 */
 export interface FreezeSummaryRow {
   lineId: number | null;
   segmentId: string | null;
@@ -116,7 +116,7 @@ export function buildFreezeSearch(query: FreezeQuery, now: number): string {
 }
 
 /**
- * 凍結検出を取得する。上流の GraphQL は重いので、タブが一度も開かれていない間は
+ * 欠落検出を取得する。上流の GraphQL は重いので、タブが一度も開かれていない間は
  * enabled=false にして呼ばない。
  */
 export function useThqFreezes(

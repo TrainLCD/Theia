@@ -100,10 +100,10 @@ function TopLeftLabel() {
   return (
     <div style={{ position: "absolute", top: 20, left: 24, zIndex: 4 }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: "#8597b3", letterSpacing: ".14em" }}>
-        地理ビュー — 全路線
+        路線マップ — 全路線
       </div>
       <div className="font-mono" style={{ fontSize: 10.5, color: "#51617a", marginTop: 3 }}>
-        ▶ 進行方向　·　クリックでデバイスを選択
+        ▶ 進行方向 · クリックで端末を選択
       </div>
     </div>
   );
@@ -633,7 +633,7 @@ function SelectedCard({ sel }: { sel: TrainView }) {
             <span style={{ fontSize: 9, color: "#6b7d9c" }}> km/h</span>
           </span>
         </Tile>
-        <Tile label="位置情報精度">
+        <Tile label="測位精度">
           <span
             className="font-mono"
             style={{ fontSize: 18, fontWeight: 600, color: sel.confColor }}
@@ -785,7 +785,7 @@ function Empty() {
         letterSpacing: ".1em",
       }}
     >
-      路線データを待機しています…
+      路線データ受信待ち
     </div>
   );
 }

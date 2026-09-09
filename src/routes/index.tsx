@@ -31,7 +31,7 @@ function Home() {
   const [activeLineId, setActiveLineId] = useState<number | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [freezeQuery, setFreezeQuery] = useState<FreezeQuery>(DEFAULT_FREEZE_QUERY);
-  // 上流の凍結検出クエリは重いので、タブを一度開くまで取得しない。
+  // 上流の欠落検出クエリは重いので、タブを一度開くまで取得しない。
   // 一度開いたら以降は常に有効にして、タブを行き来しても再取得しないようにする。
   const [freezeEnabled, setFreezeEnabled] = useState(false);
   const freeze = useThqFreezes(freezeQuery, freezeEnabled);

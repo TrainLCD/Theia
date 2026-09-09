@@ -2,7 +2,7 @@ import type { ThqConnectionState, ThqSocketState } from "../useThqSocket";
 
 const STATE_LABEL: Record<ThqConnectionState, string> = {
   connecting: "接続中",
-  open: "接続済",
+  open: "接続済み",
   closed: "切断",
   error: "エラー",
 };

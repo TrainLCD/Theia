@@ -241,7 +241,7 @@ export function deriveTrain(
     type: stateLabel,
     typeColor: stateColor,
     lineId: device.lineId,
-    lineName: meta?.name ?? "未割当",
+    lineName: meta?.name ?? "未割り当て",
     lineColor: meta?.color ?? "#6b7d9c",
     leftPct: positionResult.leftPct,
     hasPosition: positionResult.hasPosition,
@@ -319,7 +319,7 @@ export function buildLineViews(
   });
   if (unassigned.length > 0) {
     out.push({
-      meta: { id: -1, color: "#6b7d9c", name: "未割当" },
+      meta: { id: -1, color: "#6b7d9c", name: "未割り当て" },
       devices: unassigned,
       stations: [],
       trainCount: unassigned.length,
@@ -503,7 +503,8 @@ export function formatAlerts(
   return alerts.map((a) => ({
     time: fmtTime(a.ts),
     device: a.device,
-    line: a.lineId != null ? (externalLines?.get(a.lineId)?.name ?? `Line ${a.lineId}`) : "未割当",
+    line:
+      a.lineId != null ? (externalLines?.get(a.lineId)?.name ?? `Line ${a.lineId}`) : "未割り当て",
     lineColor:
       a.lineId != null ? (externalLines?.get(a.lineId)?.color ?? a.lineColor) : a.lineColor,
     code: a.code,

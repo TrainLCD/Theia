@@ -42,10 +42,10 @@ export function NetworkView({ linesView, sel, alerts, onSelectTrain }: NetworkVi
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#8597b3", letterSpacing: ".14em" }}>
-            デバイス
+            端末一覧
           </div>
           <div className="font-mono" style={{ fontSize: 10.5, color: "#51617a" }}>
-            クリックでデバイスを選択
+            クリックで端末を選択
           </div>
         </div>
         {linesView.length === 0 && <EmptyState />}
@@ -74,7 +74,7 @@ export function NetworkView({ linesView, sel, alerts, onSelectTrain }: NetworkVi
               marginBottom: 12,
             }}
           >
-            選択デバイス
+            選択端末
           </div>
           {sel ? <SelectedDevicePanel sel={sel} /> : <SelectedDevicePlaceholder />}
         </div>
@@ -97,7 +97,7 @@ function EmptyState() {
         lineHeight: 1.7,
       }}
     >
-      THQ からデバイスイベントを待機しています…
+      端末イベント受信待ち
     </div>
   );
 }
@@ -136,7 +136,7 @@ function LineStrip({
         <span style={{ fontSize: 13.5, fontWeight: 700 }}>{ln.meta.name}</span>
         <div style={{ flex: 1 }} />
         <span className="font-mono" style={{ fontSize: 11, color: "#6b7d9c" }}>
-          {ln.trainCount}デバイス
+          {ln.trainCount} 台
         </span>
         {ln.hasAlert && (
           <span
@@ -549,7 +549,7 @@ function SelectedDevicePanel({ sel }: { sel: TrainView }) {
           </div>
           <div>
             <div style={{ fontSize: 9.5, color: "#6b7d9c" }}>最終受信</div>
-            <div style={{ fontSize: 12, color: "#cdd8e8" }}>{sel.staleSec}s 前</div>
+            <div style={{ fontSize: 12, color: "#cdd8e8" }}>{sel.staleSec}秒前</div>
           </div>
         </div>
       </div>
@@ -627,7 +627,7 @@ function SelectedDevicePanel({ sel }: { sel: TrainView }) {
           }}
         >
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
-          <span style={{ fontSize: 11.5, color: "#86efac" }}>異常なし — 正常動作中</span>
+          <span style={{ fontSize: 11.5, color: "#86efac" }}>異常なし</span>
         </div>
       )}
     </div>
@@ -659,9 +659,9 @@ function SelectedDevicePlaceholder() {
         lineHeight: 1.7,
       }}
     >
-      デバイスをクリックすると
+      端末を選択すると
       <br />
-      詳細データを表示します
+      詳細データを表示
     </div>
   );
 }
@@ -706,9 +706,7 @@ function AlertFeed({ alerts }: { alerts: FormattedAlert[] }) {
           <AlertItem key={i} a={a} />
         ))}
         {alerts.length === 0 && (
-          <div style={{ color: "#51617a", fontSize: 11, padding: "16px 4px" }}>
-            アラートはありません
-          </div>
+          <div style={{ color: "#51617a", fontSize: 11, padding: "16px 4px" }}>アラートなし</div>
         )}
       </div>
     </div>
