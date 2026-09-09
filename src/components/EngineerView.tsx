@@ -90,7 +90,7 @@ function FilterBar({
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: "#8597b3", letterSpacing: ".14em" }}>
-        全デバイス診断
+        全端末診断
       </div>
       <div style={{ flex: 1 }} />
       <FilterChip on={filter === "all"} color="#cdd8e8" onClick={() => onFilter("all")}>
@@ -158,10 +158,10 @@ function TableHeader() {
         zIndex: 2,
       }}
     >
-      <div style={{ padding: "10px 12px" }}>デバイス</div>
+      <div style={{ padding: "10px 12px" }}>端末</div>
       <div style={{ padding: "10px 12px" }}>路線</div>
       <div style={{ padding: "10px 12px" }}>速度</div>
-      <div style={{ padding: "10px 12px" }}>位置情報精度</div>
+      <div style={{ padding: "10px 12px" }}>測位精度</div>
       <div style={{ padding: "10px 12px" }}>通信</div>
       <div style={{ padding: "10px 12px" }}>状態</div>
       <div style={{ padding: "10px 12px" }}>エラーコード</div>
@@ -265,7 +265,7 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
           marginBottom: 12,
         }}
       >
-        デバイス診断
+        選択端末の診断
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
         <span
@@ -309,7 +309,7 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
             <span style={{ fontSize: 10, color: "#6b7d9c" }}> km/h</span>
           </span>
         </DiagTile>
-        <DiagTile label="位置情報精度">
+        <DiagTile label="測位精度">
           <span
             className="font-mono"
             style={{ fontSize: 20, fontWeight: 600, color: engSel.confColor }}
@@ -330,7 +330,7 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
         </DiagTile>
       </div>
       <div style={{ fontSize: 10, color: "#6b7d9c", marginBottom: 7, letterSpacing: ".08em" }}>
-        検出エラー / 警告
+        検出されたエラー / 警告
       </div>
       {engSel.hasErrors ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -405,7 +405,7 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
           }}
         >
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
-          <span style={{ fontSize: 11.5, color: "#86efac" }}>検出されたエラーはありません</span>
+          <span style={{ fontSize: 11.5, color: "#86efac" }}>エラーなし</span>
         </div>
       )}
     </div>
@@ -441,7 +441,7 @@ function WorstList({
           marginBottom: 12,
         }}
       >
-        位置情報精度 ワースト
+        測位精度が低い順
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {worst.map((w) => (

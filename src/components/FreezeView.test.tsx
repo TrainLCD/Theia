@@ -82,21 +82,21 @@ describe("FreezeView", () => {
     expect(getByText("11302:1130201:1130202")).toBeTruthy();
   });
 
-  it("凍結 0 件のグループは既定で畳み、件数と「凍結なし」であることは残す", () => {
+  it("欠落 0 件のグループは既定で畳み、件数と「欠落なし」であることは残す", () => {
     const clean = { ...SUMMARY_ROW, freezeSessionCount: 0, freezeCount: 0, maxGapMs: null };
     const { getByText, queryByText } = renderView(state({ summary: [clean] }));
-    // 行そのものは出さないが、対象が無かったのではなく凍結が無かったと分かること。
+    // 行そのものは出さないが、対象が無かったのではなく欠落が無かったと分かること。
     expect(queryByText("11302:1130201:1130202")).toBeNull();
-    expect(getByText("この条件では凍結はありません (対象 1 件はいずれも凍結 0)")).toBeTruthy();
+    expect(getByText("この条件では欠落なし (対象 1 件はいずれも欠落 0)")).toBeTruthy();
     expect(getByText("集計グループ").nextSibling?.textContent).toBe("1");
-    expect(getByText("凍結件数").nextSibling?.textContent).toBe("0");
+    expect(getByText("欠落件数").nextSibling?.textContent).toBe("0");
   });
 
-  it("「凍結ありのみ」を外すとビルド間比較のために凍結 0 件も並べる", () => {
+  it("「欠落ありのみ」を外すとビルド間比較のために欠落 0 件も並べる", () => {
     const clean = { ...SUMMARY_ROW, freezeSessionCount: 0, freezeCount: 0, maxGapMs: null };
     const { getByLabelText, getByText } = renderView(state({ summary: [SUMMARY_ROW, clean] }));
-    expect(getByText("1 件 (凍結なし 1 件を非表示)")).toBeTruthy();
-    fireEvent.click(getByLabelText("凍結ありのみ"));
+    expect(getByText("1 件 (欠落なし 1 件を非表示)")).toBeTruthy();
+    fireEvent.click(getByLabelText("欠落ありのみ"));
     expect(getByText("2 件")).toBeTruthy();
   });
 
@@ -126,6 +126,6 @@ describe("FreezeView", () => {
 
   it("取得失敗は空表示ではなく理由付きで知らせる", () => {
     const { getByText } = renderView(state({ error: "HTTP 401" }));
-    expect(getByText("取得に失敗しました: HTTP 401")).toBeTruthy();
+    expect(getByText("取得失敗: HTTP 401")).toBeTruthy();
   });
 });

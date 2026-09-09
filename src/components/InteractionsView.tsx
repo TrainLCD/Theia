@@ -16,7 +16,7 @@ const PRIMARY_INK = "#e6edf7";
 const SECONDARY_INK = "#8597b3";
 
 const ANON = "(匿名)";
-// 実デバイス名と衝突しない匿名イベント用の内部キー(表示時に ANON へ変換)。
+// 実端末名と衝突しない匿名イベント用の内部キー(表示時に ANON へ変換)。
 const ANON_KEY = "\u0000anon";
 const MAX_RANK_ROWS = 12;
 const MAX_FEED_ROWS = 200;
@@ -73,7 +73,7 @@ export function InteractionsView({ interactions, now }: InteractionsViewProps) {
     return interactions.filter((e) => e.timestamp >= tMin);
   }, [interactions, windowMs, now]);
 
-  // ランキングは相互フィルタ: イベント別はデバイス絞り込みを、デバイス別は
+  // ランキングは相互フィルタ: イベント別は端末絞り込みを、端末別は
   // イベント絞り込みを反映し、自身の軸は全候補を出したままにする。
   const eventRanks = rankCounts(
     inWindow
@@ -114,14 +114,14 @@ export function InteractionsView({ interactions, now }: InteractionsViewProps) {
         <div
           style={{ fontSize: 12, fontWeight: 600, color: SECONDARY_INK, letterSpacing: ".14em" }}
         >
-          インタラクション解析
+          操作ログ
         </div>
         {eventFilter != null && (
           <FilterChip label={`イベント: ${eventFilter}`} onClear={() => setEventFilter(null)} />
         )}
         {deviceFilter != null && (
           <FilterChip
-            label={`デバイス: ${deviceLabel(deviceFilter)}`}
+            label={`端末: ${deviceLabel(deviceFilter)}`}
             onClear={() => setDeviceFilter(null)}
           />
         )}
@@ -155,7 +155,7 @@ export function InteractionsView({ interactions, now }: InteractionsViewProps) {
       <div style={{ display: "flex", gap: 11 }}>
         <StatTile label="件数" value={filtered.length} />
         <StatTile label="イベント種類" value={kindCount} />
-        <StatTile label="デバイス数" value={devCount} />
+        <StatTile label="端末数" value={devCount} />
       </div>
 
       <div style={{ display: "flex", gap: 11, alignItems: "stretch" }}>
@@ -166,7 +166,7 @@ export function InteractionsView({ interactions, now }: InteractionsViewProps) {
           onToggle={(k) => setEventFilter((cur) => (cur === k ? null : k))}
         />
         <RankCard
-          title="デバイス別件数"
+          title="端末別件数"
           ranks={deviceRanks}
           selected={deviceFilter}
           formatKey={deviceLabel}
@@ -214,7 +214,7 @@ export function InteractionsView({ interactions, now }: InteractionsViewProps) {
             borderBottom: "1px solid #1e2c44",
           }}
         >
-          {["時刻", "デバイス", "イベント", "プロパティ", "端末"].map((h) => (
+          {["時刻", "端末", "イベント", "プロパティ", "機種"].map((h) => (
             <div key={h} style={{ padding: "7px 12px" }}>
               {h}
             </div>
@@ -222,9 +222,7 @@ export function InteractionsView({ interactions, now }: InteractionsViewProps) {
         </div>
         {filtered.length === 0 && (
           <div style={{ padding: "16px 14px", fontSize: 11.5, color: AXIS_INK }}>
-            {interactions.length === 0
-              ? "インタラクションイベントの受信待ちです"
-              : "条件に一致するイベントがありません"}
+            {interactions.length === 0 ? "操作イベントなし" : "該当イベントなし"}
           </div>
         )}
         {filtered.slice(0, MAX_FEED_ROWS).map((e) => (

@@ -103,8 +103,8 @@ function fmtBuild(row: {
 
 export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: FreezeViewProps) {
   const [pane, setPane] = useViewSetting<Pane>("freeze.pane", "summary");
-  // THQ は凍結 0 件のセッション・グループも返す (ビルド間比較で「出てこない」と
-  // 「凍結が無かった」を区別するため)。既定では畳んでおき、比較したいときだけ出す。
+  // THQ は欠落 0 件のセッション・グループも返す (ビルド間比較で「出てこない」と
+  // 「欠落が無かった」を区別するため)。既定では畳んでおき、比較したいときだけ出す。
   const [onlyFrozen, setOnlyFrozen] = useViewSetting("freeze.onlyFrozen", true);
 
   const lineName = useMemo(() => {
@@ -112,7 +112,7 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
     for (const meta of lineMetadata.values()) {
       names.set(meta.id, { name: meta.name, color: meta.color });
     }
-    // 凍結レスポンス側の路線名を優先する (ライブに出てこない過去の路線も引けるため)。
+    // 欠落レスポンス側の路線名を優先する (ライブに出てこない過去の路線も引けるため)。
     for (const line of freeze.lines) names.set(line.id, { name: line.name, color: line.color });
     return names;
   }, [lineMetadata, freeze.lines]);
@@ -166,10 +166,10 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
         <div
           style={{ fontSize: 12, fontWeight: 600, color: SECONDARY_INK, letterSpacing: ".14em" }}
         >
-          現在地凍結
+          位置ログの欠落
         </div>
         <span style={{ fontSize: 10.5, color: AXIS_INK }}>
-          位置ログの欠落・欠落直前の速度・欠落中のアプリ生存の 3 条件で検出
+          走行中かつアプリ稼働中に位置ログが途切れた区間を検出
         </span>
         <div style={{ flex: 1 }} />
         {freeze.fetchedAt > 0 && (
@@ -254,12 +254,12 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
             ))}
           </select>
           <Toggle
-            label="アプリ生存を必須にする"
+            label="アプリ稼働中に限る"
             checked={query.requireAppAlive}
             onChange={(requireAppAlive) => patch({ requireAppAlive })}
           />
           <span style={{ fontSize: 10, color: AXIS_INK }}>
-            外すとクラッシュ由来の欠落も含まれます
+            オフにするとクラッシュ由来の欠落も含む
           </span>
         </FilterRow>
       </div>
@@ -276,18 +276,18 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
             color: "#f2b8b8",
           }}
         >
-          取得に失敗しました: {freeze.error}
+          取得失敗: {freeze.error}
         </div>
       )}
 
       <div style={{ flex: "none", display: "flex", gap: 11 }}>
         <StatTile
-          label="凍結件数"
+          label="欠落件数"
           value={String(totalFreezes)}
           tone={totalFreezes > 0 ? "alert" : "clean"}
         />
         <StatTile
-          label="凍結セッション"
+          label="欠落セッション"
           value={totalSessions === 0 ? "—" : `${freezeSessions} / ${totalSessions}`}
           tone={totalSessions === 0 ? "neutral" : freezeSessions > 0 ? "alert" : "clean"}
         />
@@ -321,7 +321,7 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
         ))}
         <div style={{ flex: 1 }} />
         {pane !== "freezes" && (
-          <Toggle label="凍結ありのみ" checked={onlyFrozen} onChange={setOnlyFrozen} />
+          <Toggle label="欠落ありのみ" checked={onlyFrozen} onChange={setOnlyFrozen} />
         )}
       </div>
 
@@ -366,7 +366,7 @@ function Card({
   empty: string;
   columns: string;
   headers: string[];
-  /** 凍結 0 件で畳んだ行数。0 なら何も出さない。 */
+  /** 欠落 0 件で畳んだ行数。0 なら何も出さない。 */
   hiddenCount?: number;
   children: ReactNode;
 }) {
@@ -402,7 +402,7 @@ function Card({
         <span style={{ flex: 1 }} />
         <span className="font-mono" style={{ fontSize: 10, color: AXIS_INK, fontWeight: 400 }}>
           {count > MAX_ROWS ? `${count} 件中 ${MAX_ROWS} 件を表示` : `${count} 件`}
-          {hiddenCount > 0 && ` (凍結なし ${hiddenCount} 件を非表示)`}
+          {hiddenCount > 0 && ` (欠落なし ${hiddenCount} 件を非表示)`}
         </span>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -435,7 +435,7 @@ function Card({
               {loading
                 ? "取得中…"
                 : hiddenCount > 0
-                  ? `この条件では凍結はありません (対象 ${hiddenCount} 件はいずれも凍結 0)`
+                  ? `この条件では欠落なし (対象 ${hiddenCount} 件はいずれも欠落 0)`
                   : empty}
             </div>
           )}
@@ -467,7 +467,7 @@ function SummaryTable({
       count={shown.length}
       hiddenCount={rows.length - shown.length}
       loading={loading}
-      empty="条件に一致するグループがありません"
+      empty="該当グループなし"
       columns={SUMMARY_COLUMNS}
       headers={[
         "路線",
@@ -475,8 +475,8 @@ function SummaryTable({
         "端末",
         "ビルド",
         "セッション",
-        "凍結セッション",
-        "凍結",
+        "欠落セッション",
+        "欠落",
         "最長欠落",
       ]}
     >
@@ -541,9 +541,9 @@ function SessionTable({
       count={shown.length}
       hiddenCount={rows.length - shown.length}
       loading={loading}
-      empty="条件に一致するセッションがありません"
+      empty="該当セッションなし"
       columns={SESSION_COLUMNS}
-      headers={["開始", "端末", "路線", "ビルド", "位置ログ", "最高速度 km/h", "凍結", "最長欠落"]}
+      headers={["開始", "端末", "路線", "ビルド", "位置ログ", "最高速度 km/h", "欠落", "最長欠落"]}
     >
       {shown.slice(0, MAX_ROWS).map((r) => (
         <div
@@ -604,7 +604,7 @@ function FreezeTable({
       title="欠落 1 件ごと (新しい順)"
       count={rows.length}
       loading={loading}
-      empty="条件に一致する凍結はありません"
+      empty="該当する欠落なし"
       columns={FREEZE_COLUMNS}
       headers={[
         "欠落開始",
@@ -613,7 +613,7 @@ function FreezeTable({
         "欠落長",
         "直前速度 km/h",
         "ずれ",
-        "生存イベント",
+        "稼働イベント",
         "ビルド",
       ]}
     >
@@ -793,7 +793,7 @@ function StatTile({
 }: {
   label: string;
   value: string;
-  // alert: 凍結あり(赤) / clean: 対象はあるが凍結ゼロ(緑) / neutral: 判定なし
+  // alert: 欠落あり(赤) / clean: 対象はあるが欠落ゼロ(緑) / neutral: 判定なし
   tone?: "alert" | "clean" | "neutral";
 }) {
   return (

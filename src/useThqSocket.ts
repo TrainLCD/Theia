@@ -174,7 +174,7 @@ function freshDevice(deviceId: string, ts: number): Device {
 const BATTERY_HISTORY_CAP = 1440;
 const BATTERY_MIN_INTERVAL_MS = 30_000;
 
-// 残量・充電状態が変わらない報告は 30 秒間隔に間引き、1 デバイスあたり
+// 残量・充電状態が変わらない報告は 30 秒間隔に間引き、1 端末あたり
 // BATTERY_HISTORY_CAP 件で打ち切る(30秒間隔なら約12時間分)。
 function appendBatterySample(
   history: Map<string, BatterySample[]>,

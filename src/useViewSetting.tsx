@@ -12,7 +12,7 @@ import {
 const ViewSettingsContext = createContext<Map<string, unknown> | null>(null);
 
 // タブ切替でビューがアンマウントされても設定値を保持するためのストア。
-// タブ切替をまたいで生存するコンポーネント(Home)に置くこと。
+// タブ切替をまたいでマウントされ続けるコンポーネント(Home)に置くこと。
 export function ViewSettingsProvider({ children }: { children: ReactNode }) {
   const storeRef = useRef<Map<string, unknown> | null>(null);
   storeRef.current ??= new Map();

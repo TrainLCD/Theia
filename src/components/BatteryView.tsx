@@ -65,7 +65,7 @@ function fmtHms(ts: number): string {
 
 function fmtAgo(ts: number, now: number): string {
   const sec = Math.max(0, Math.floor((now - ts) / 1000));
-  if (sec < 60) return `${sec}s 前`;
+  if (sec < 60) return `${sec}秒前`;
   if (sec < 3600) return `${Math.floor(sec / 60)}分前`;
   return `${Math.floor(sec / 3600)}時間前`;
 }
@@ -231,7 +231,7 @@ export function BatteryView({ history, views, now }: BatteryViewProps) {
         <div
           style={{ fontSize: 12, fontWeight: 600, color: SECONDARY_INK, letterSpacing: ".14em" }}
         >
-          バッテリ残量推移
+          バッテリー残量推移
         </div>
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", gap: 4 }}>
@@ -328,7 +328,7 @@ export function BatteryView({ history, views, now }: BatteryViewProps) {
               fontSize: 12,
             }}
           >
-            バッテリ情報を含む位置情報イベントの受信待ちです
+            バッテリー情報なし
           </div>
         ) : (
           <div
@@ -351,7 +351,7 @@ export function BatteryView({ history, views, now }: BatteryViewProps) {
               viewBox={`0 0 ${width} ${CHART_H}`}
               preserveAspectRatio="none"
               role="img"
-              aria-label="デバイスごとのバッテリ残量の時系列チャート"
+              aria-label="端末ごとのバッテリー残量の時系列チャート"
               onPointerMove={(e) => setHoverTs(snapTs(e.clientX, e.currentTarget))}
               onPointerLeave={() => setHoverTs(null)}
               style={{ display: "block", touchAction: "none" }}
@@ -580,7 +580,7 @@ export function BatteryView({ history, views, now }: BatteryViewProps) {
             borderBottom: "1px solid #1e2c44",
           }}
         >
-          {["デバイス", "現在", "最小", "最大", "変化", "充電", "最終更新"].map((h) => (
+          {["端末", "現在", "最小", "最大", "変化", "充電", "最終更新"].map((h) => (
             <div key={h} style={{ padding: "8px 12px" }}>
               {h}
             </div>
