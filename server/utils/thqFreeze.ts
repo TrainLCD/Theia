@@ -50,11 +50,16 @@ function str(input: QueryInput, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-function num(input: QueryInput, key: string): number | null {
+type NumResult = { value: number | null } | { error: string };
+
+// 未指定は null を返すが、指定されていて数値として読めない場合はエラーにする。
+// 既定値に落とすと、指定したつもりの条件と違う結果を返しても気付けない。
+function num(input: QueryInput, key: string): NumResult {
   const value = str(input, key);
-  if (value == null) return null;
+  if (value == null) return { value: null };
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  if (!Number.isFinite(parsed)) return { error: `invalid "${key}": ${value}` };
+  return { value: parsed };
 }
 
 /** クエリ文字列を FreezeFilter に落とす。不正な値は理由付きで弾く。 */
@@ -79,16 +84,23 @@ export function parseFreezeQuery(
   if (channel != null && !CHANNELS.includes(channel as ThqChannel)) {
     return { error: `invalid "channel": ${channel}` };
   }
-  const lineIdRaw = num(input, "lineId");
-  if (lineIdRaw != null && !Number.isInteger(lineIdRaw)) {
+  const lineId = num(input, "lineId");
+  if ("error" in lineId) return lineId;
+  if (lineId.value != null && !Number.isInteger(lineId.value)) {
     return { error: `invalid "lineId": ${str(input, "lineId")}` };
   }
+  const gapThresholdMs = num(input, "gapThresholdMs");
+  if ("error" in gapThresholdMs) return gapThresholdMs;
+  const speedThresholdKmh = num(input, "speedThresholdKmh");
+  if ("error" in speedThresholdKmh) return speedThresholdKmh;
+  const limit = num(input, "limit");
+  if ("error" in limit) return limit;
 
   return {
     filter: {
       from: new Date(from).toISOString(),
       to: new Date(to).toISOString(),
-      lineId: lineIdRaw,
+      lineId: lineId.value,
       segmentId: str(input, "segmentId"),
       device: str(input, "device"),
       sessionId: str(input, "sessionId"),
@@ -97,15 +109,12 @@ export function parseFreezeQuery(
       channel: channel as ThqChannel | null,
       gapThresholdMs: Math.max(
         MIN_GAP_THRESHOLD_MS,
-        Math.round(num(input, "gapThresholdMs") ?? DEFAULT_GAP_THRESHOLD_MS),
+        Math.round(gapThresholdMs.value ?? DEFAULT_GAP_THRESHOLD_MS),
       ),
-      speedThresholdKmh: Math.max(
-        0,
-        num(input, "speedThresholdKmh") ?? DEFAULT_SPEED_THRESHOLD_KMH,
-      ),
+      speedThresholdKmh: Math.max(0, speedThresholdKmh.value ?? DEFAULT_SPEED_THRESHOLD_KMH),
       // 既定は true。明示的に "false" のときだけ条件を外す。
       requireAppAlive: str(input, "requireAppAlive") !== "false",
-      limit: Math.min(MAX_LIMIT, Math.max(1, Math.round(num(input, "limit") ?? DEFAULT_LIMIT))),
+      limit: Math.min(MAX_LIMIT, Math.max(1, Math.round(limit.value ?? DEFAULT_LIMIT))),
     },
   };
 }

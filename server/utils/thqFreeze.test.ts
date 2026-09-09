@@ -52,6 +52,27 @@ describe("parseFreezeQuery", () => {
     });
   });
 
+  it("rejects numeric params that were supplied but cannot be parsed", () => {
+    // 既定値に落とすと、指定したつもりの条件と違う結果が返っても気付けない。
+    expect(parseFreezeQuery({ gapThresholdMs: "abc" }, NOW)).toEqual({
+      error: 'invalid "gapThresholdMs": abc',
+    });
+    expect(parseFreezeQuery({ speedThresholdKmh: "fast" }, NOW)).toEqual({
+      error: 'invalid "speedThresholdKmh": fast',
+    });
+    expect(parseFreezeQuery({ limit: "all" }, NOW)).toEqual({ error: 'invalid "limit": all' });
+    expect(parseFreezeQuery({ lineId: "yamanote" }, NOW)).toEqual({
+      error: 'invalid "lineId": yamanote',
+    });
+    // 未指定は従来どおり既定値のまま。
+    expect(ok(parseFreezeQuery({}, NOW))).toMatchObject({
+      gapThresholdMs: 60_000,
+      speedThresholdKmh: 30,
+      limit: 200,
+      lineId: null,
+    });
+  });
+
   it("rejects enum values the upstream schema does not know", () => {
     expect(parseFreezeQuery({ platform: "windows" }, NOW)).toEqual({
       error: 'invalid "platform": windows',

@@ -102,6 +102,13 @@ describe("FreezeView", () => {
     expect(getByText("74.5")).toBeTruthy();
   });
 
+  it("欠落長は秒を繰り上げて表示する", () => {
+    // 分と秒を別々に丸めると 119_999ms が「1分60秒」になる。
+    const { getByText } = renderView(state({ freezes: [{ ...FREEZE_ROW, gapMs: 119_999 }] }));
+    fireEvent.click(getByText("個別の欠落"));
+    expect(getByText("2分00秒")).toBeTruthy();
+  });
+
   it("しきい値プリセットを押すとクエリを更新する", () => {
     let next: FreezeQuery | null = null;
     const { getByText } = renderView(state(), (q) => {

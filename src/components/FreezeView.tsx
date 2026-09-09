@@ -75,8 +75,10 @@ function fmtDuration(ms: number | null): string {
   if (ms < 1000) return `${ms}ms`;
   const sec = ms / 1000;
   if (sec < 60) return `${sec.toFixed(1)}秒`;
-  const min = Math.floor(sec / 60);
-  const rest = Math.round(sec - min * 60);
+  // 先に丸めてから分と秒に割る。分・秒を別々に丸めると 119_999ms が「1分60秒」になる。
+  const rounded = Math.round(sec);
+  const min = Math.floor(rounded / 60);
+  const rest = rounded % 60;
   return `${min}分${String(rest).padStart(2, "0")}秒`;
 }
 
