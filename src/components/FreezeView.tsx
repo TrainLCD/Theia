@@ -103,6 +103,9 @@ function fmtBuild(row: {
 
 export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: FreezeViewProps) {
   const [pane, setPane] = useViewSetting<Pane>("freeze.pane", "summary");
+  // THQ は凍結 0 件のセッション・グループも返す (ビルド間比較で「出てこない」と
+  // 「凍結が無かった」を区別するため)。既定では畳んでおき、比較したいときだけ出す。
+  const [onlyFrozen, setOnlyFrozen] = useViewSetting("freeze.onlyFrozen", true);
 
   const lineName = useMemo(() => {
     const names = new Map<number, { name: string; color: string }>();
@@ -316,13 +319,27 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
             {p.label}
           </button>
         ))}
+        <div style={{ flex: 1 }} />
+        {pane !== "freezes" && (
+          <Toggle label="凍結ありのみ" checked={onlyFrozen} onChange={setOnlyFrozen} />
+        )}
       </div>
 
       {pane === "summary" && (
-        <SummaryTable rows={freeze.summary} loading={freeze.loading} renderLine={renderLine} />
+        <SummaryTable
+          rows={freeze.summary}
+          loading={freeze.loading}
+          onlyFrozen={onlyFrozen}
+          renderLine={renderLine}
+        />
       )}
       {pane === "sessions" && (
-        <SessionTable rows={freeze.sessions} loading={freeze.loading} renderLine={renderLine} />
+        <SessionTable
+          rows={freeze.sessions}
+          loading={freeze.loading}
+          onlyFrozen={onlyFrozen}
+          renderLine={renderLine}
+        />
       )}
       {pane === "freezes" && (
         <FreezeTable rows={freeze.freezes} loading={freeze.loading} renderLine={renderLine} />
@@ -340,6 +357,7 @@ function Card({
   empty,
   columns,
   headers,
+  hiddenCount = 0,
   children,
 }: {
   title: string;
@@ -348,6 +366,8 @@ function Card({
   empty: string;
   columns: string;
   headers: string[];
+  /** 凍結 0 件で畳んだ行数。0 なら何も出さない。 */
+  hiddenCount?: number;
   children: ReactNode;
 }) {
   return (
@@ -382,6 +402,7 @@ function Card({
         <span style={{ flex: 1 }} />
         <span className="font-mono" style={{ fontSize: 10, color: AXIS_INK, fontWeight: 400 }}>
           {count > MAX_ROWS ? `${count} 件中 ${MAX_ROWS} 件を表示` : `${count} 件`}
+          {hiddenCount > 0 && ` (凍結なし ${hiddenCount} 件を非表示)`}
         </span>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -411,7 +432,11 @@ function Card({
           </div>
           {count === 0 && (
             <div style={{ padding: "16px 14px", fontSize: 11.5, color: AXIS_INK }}>
-              {loading ? "取得中…" : empty}
+              {loading
+                ? "取得中…"
+                : hiddenCount > 0
+                  ? `この条件では凍結はありません (対象 ${hiddenCount} 件はいずれも凍結 0)`
+                  : empty}
             </div>
           )}
           {children}
@@ -427,16 +452,20 @@ const SUMMARY_COLUMNS =
 function SummaryTable({
   rows,
   loading,
+  onlyFrozen,
   renderLine,
 }: {
   rows: FreezeSummaryRow[];
   loading: boolean;
+  onlyFrozen: boolean;
   renderLine: LineRenderer;
 }) {
+  const shown = onlyFrozen ? rows.filter((r) => r.freezeCount > 0) : rows;
   return (
     <Card
       title="路線・区間・端末・ビルド別"
-      count={rows.length}
+      count={shown.length}
+      hiddenCount={rows.length - shown.length}
       loading={loading}
       empty="条件に一致するグループがありません"
       columns={SUMMARY_COLUMNS}
@@ -451,7 +480,7 @@ function SummaryTable({
         "最長欠落",
       ]}
     >
-      {rows.slice(0, MAX_ROWS).map((r, i) => {
+      {shown.slice(0, MAX_ROWS).map((r, i) => {
         const line = renderLine(r.lineId);
         return (
           <div
@@ -497,22 +526,26 @@ const SESSION_COLUMNS =
 function SessionTable({
   rows,
   loading,
+  onlyFrozen,
   renderLine,
 }: {
   rows: FreezeSessionRow[];
   loading: boolean;
+  onlyFrozen: boolean;
   renderLine: LineRenderer;
 }) {
+  const shown = onlyFrozen ? rows.filter((r) => r.freezeCount > 0) : rows;
   return (
     <Card
-      title="セッション別 (凍結 0 件も表示)"
-      count={rows.length}
+      title="セッション別"
+      count={shown.length}
+      hiddenCount={rows.length - shown.length}
       loading={loading}
       empty="条件に一致するセッションがありません"
       columns={SESSION_COLUMNS}
       headers={["開始", "端末", "路線", "ビルド", "位置ログ", "最高速度 km/h", "凍結", "最長欠落"]}
     >
-      {rows.slice(0, MAX_ROWS).map((r) => (
+      {shown.slice(0, MAX_ROWS).map((r) => (
         <div
           key={r.sessionId}
           title={`session ${r.sessionId}\n${fmtStamp(r.startedAt)} → ${fmtStamp(r.endedAt)}`}
