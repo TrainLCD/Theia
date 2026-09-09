@@ -87,7 +87,7 @@ describe("FreezeView", () => {
     const { getByText, queryByText } = renderView(state({ summary: [clean] }));
     // 行そのものは出さないが、対象が無かったのではなく欠落が無かったと分かること。
     expect(queryByText("11302:1130201:1130202")).toBeNull();
-    expect(getByText("この条件では欠落なし (対象 1 件はいずれも欠落 0)")).toBeTruthy();
+    expect(getByText("すべて欠落なし")).toBeTruthy();
     expect(getByText("集計グループ").nextSibling?.textContent).toBe("1");
     expect(getByText("欠落件数").nextSibling?.textContent).toBe("0");
   });

@@ -432,11 +432,7 @@ function Card({
           </div>
           {count === 0 && (
             <div style={{ padding: "16px 14px", fontSize: 11.5, color: AXIS_INK }}>
-              {loading
-                ? "取得中…"
-                : hiddenCount > 0
-                  ? `この条件では欠落なし (対象 ${hiddenCount} 件はいずれも欠落 0)`
-                  : empty}
+              {loading ? "取得中…" : hiddenCount > 0 ? "すべて欠落なし" : empty}
             </div>
           )}
           {children}
