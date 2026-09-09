@@ -19,6 +19,9 @@ function locationRow(overrides: Partial<GqlLocationRow> = {}): GqlLocationRow {
     toStationId: null,
     batteryLevel: 0.4,
     batteryState: "unplugged",
+    appVersion: "10.15.0(2895)",
+    platform: "ios",
+    channel: "canary",
     ...overrides,
   };
 }
@@ -115,7 +118,20 @@ describe("buildSnapshotMessages", () => {
       to_station_id: null,
       battery_level: 0.4,
       battery_state: 1,
+      app_version: "10.15.0(2895)",
+      platform: "ios",
+      channel: "canary",
     });
+  });
+
+  it("keeps the build info null for clients that predate it", () => {
+    const messages = buildSnapshotMessages(
+      emptyData({
+        locations: [locationRow({ appVersion: null, platform: null, channel: null })],
+      }),
+      [],
+    );
+    expect(messages[0]).toMatchObject({ app_version: null, platform: null, channel: null });
   });
 
   it("skips locations missing required fields", () => {

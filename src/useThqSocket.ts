@@ -13,6 +13,9 @@ import type {
 
 export type ThqConnectionState = "connecting" | "open" | "closed" | "error";
 
+export type ThqPlatform = "ios" | "android" | "macos" | "unknown";
+export type ThqChannel = "production" | "canary";
+
 export interface ThqCoords {
   latitude: number;
   longitude: number;
@@ -36,6 +39,10 @@ export interface ThqLocationUpdate {
   to_station_id?: number | null;
   battery_level?: number | null;
   battery_state?: 0 | 1 | 2 | 3 | null;
+  // THQ#30 で location_update にも付いたビルド情報。送っていないクライアントでは null。
+  app_version?: string | null;
+  platform?: ThqPlatform | null;
+  channel?: ThqChannel | null;
 }
 
 export interface ThqLogEvent {
@@ -45,8 +52,8 @@ export interface ThqLogEvent {
   // ログは匿名送信が可能なため device が null になり得る。
   device: string | null;
   app_version?: string;
-  platform?: "ios" | "android" | "macos" | "unknown";
-  channel?: "production" | "canary";
+  platform?: ThqPlatform;
+  channel?: ThqChannel;
   timestamp: number;
   log: {
     type: "system" | "app" | "client";
@@ -61,8 +68,8 @@ export interface ThqInteractionEvent {
   session_id?: string;
   device: string | null;
   app_version?: string;
-  platform?: "ios" | "android" | "macos" | "unknown";
-  channel?: "production" | "canary";
+  platform?: ThqPlatform;
+  channel?: ThqChannel;
   timestamp: number;
   event_name: string;
   properties: Record<string, string | number | boolean | null> | null;
