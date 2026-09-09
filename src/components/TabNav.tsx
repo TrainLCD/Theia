@@ -64,6 +64,13 @@ export function TabNav({ view, onChangeView, counts }: TabNavProps) {
       >
         バッテリ
       </NavButton>
+      <NavButton
+        active={view === "freeze"}
+        color={navColor("freeze")}
+        onClick={() => onChangeView("freeze")}
+      >
+        現在地凍結
+      </NavButton>
       <div style={{ flex: 1 }} />
       <div
         className="font-mono"

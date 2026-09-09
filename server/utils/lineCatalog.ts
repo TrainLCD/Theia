@@ -32,6 +32,10 @@ const QUERY = `query L($lineId: Int!) {
   }
 }`;
 
+// 上流が応答を返さないと /api/thq-snapshot と /api/thq-freezes が
+// そのままぶら下がるため、必ず期限を切る。
+const FETCH_TIMEOUT_MS = 10_000;
+
 const cache = new Map<number, LineMeta>();
 const inFlight = new Map<number, Promise<LineMeta | null>>();
 const negativeCache = new Set<number>();
@@ -89,6 +93,7 @@ export async function resolveLine(lineId: number): Promise<LineMeta | null> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: QUERY, variables: { lineId } }),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       if (!res.ok) {
         console.warn(`[trainlcd] line ${lineId} HTTP ${res.status}`);

@@ -7,10 +7,8 @@ import type {
 } from "../../src/useThqSocket";
 import { resolveLine } from "./lineCatalog";
 import type { LineMeta } from "./lineCatalog";
+import { THQ_GRAPHQL_URL, THQ_OBSERVER_TOKEN } from "./thqAuth";
 import { lineMetaMsg } from "./thqBus";
-
-const GQL_URL = process.env.THQ_GRAPHQL_URL ?? "https://thq.trainlcd.app/graphql";
-const THQ_TOKEN = process.env.THQ_WS_TOKEN;
 
 // バッテリー履歴のクライアント上限 (1440 件 × 30 秒間隔 ≒ 12 時間) に合わせる。
 const SNAPSHOT_WINDOW_MS = 12 * 60 * 60 * 1000;
@@ -27,7 +25,7 @@ const SNAPSHOT_QUERY = `query Snapshot($from: DateTime!, $locLimit: Int!, $logLi
     id sessionId device state stationId lineId
     coords { latitude longitude accuracy speed }
     timestamp segmentId fromStationId toStationId
-    batteryLevel batteryState
+    batteryLevel batteryState appVersion platform channel
   }
   warns: logEvents(from: $from, level: warn, limit: $logLimit) {
     id sessionId device appVersion platform channel timestamp type level message
@@ -63,6 +61,9 @@ export interface GqlLocationRow {
   toStationId: number | null;
   batteryLevel: number | null;
   batteryState: GqlBatteryState | null;
+  appVersion: string | null;
+  platform: ThqLocationUpdate["platform"];
+  channel: ThqLocationUpdate["channel"];
 }
 
 export interface GqlLogRow {
@@ -142,6 +143,9 @@ function toLocationUpdate(row: GqlLocationRow): ThqLocationUpdate | null {
     to_station_id: row.toStationId,
     battery_level: row.batteryLevel,
     battery_state: batteryStateToNumber(row.batteryState),
+    app_version: row.appVersion ?? null,
+    platform: row.platform ?? null,
+    channel: row.channel ?? null,
   };
 }
 
@@ -200,15 +204,15 @@ export function buildSnapshotMessages(data: GqlSnapshotData, lineMetas: LineMeta
 }
 
 async function doFetchSnapshot(): Promise<ThqSnapshotPayload> {
-  if (!THQ_TOKEN) {
-    return { messages: [], error: "THQ_WS_TOKEN is not set" };
+  if (!THQ_OBSERVER_TOKEN) {
+    return { messages: [], error: "THQ_OBSERVER_TOKEN is not set" };
   }
   try {
-    const res = await fetch(GQL_URL, {
+    const res = await fetch(THQ_GRAPHQL_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${THQ_TOKEN}`,
+        Authorization: `Bearer ${THQ_OBSERVER_TOKEN}`,
       },
       body: JSON.stringify({
         query: SNAPSHOT_QUERY,

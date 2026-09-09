@@ -1,5 +1,6 @@
 import { allCachedLines, resolveLine } from "./lineCatalog";
 import type { LineMeta } from "./lineCatalog";
+import { THQ_OBSERVER_TOKEN } from "./thqAuth";
 
 type Listener = (msg: unknown) => void;
 
@@ -11,7 +12,6 @@ let reconnectAttempts = 0;
 let warnedMissingToken = false;
 
 const THQ_URL = process.env.THQ_WS_URL ?? "wss://thq.trainlcd.app/ws";
-const THQ_TOKEN = process.env.THQ_WS_TOKEN;
 const THQ_SUBSCRIBE_DEVICE = process.env.THQ_SUBSCRIBE_DEVICE ?? "theia";
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 30_000;
@@ -67,13 +67,13 @@ function maybeAnnounceLine(lineId: number) {
 
 function connect() {
   if (ws) return;
-  if (!THQ_TOKEN && !warnedMissingToken) {
+  if (!THQ_OBSERVER_TOKEN && !warnedMissingToken) {
     warnedMissingToken = true;
     console.warn(
-      "[thq] THQ_WS_TOKEN is not set; the upstream only accepts the observer token and rejects the handshake with 401",
+      "[thq] THQ_OBSERVER_TOKEN is not set; the upstream only accepts the observer token and rejects the handshake with 401",
     );
   }
-  const protocols = THQ_TOKEN ? ["thq", `thq-auth-${THQ_TOKEN}`] : ["thq"];
+  const protocols = THQ_OBSERVER_TOKEN ? ["thq", `thq-auth-${THQ_OBSERVER_TOKEN}`] : ["thq"];
   let socket: WebSocket;
   try {
     socket = new WebSocket(THQ_URL, protocols);

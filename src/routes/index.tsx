@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { BatteryView } from "#/components/BatteryView";
 import { EngineerView } from "#/components/EngineerView";
+import { DEFAULT_FREEZE_QUERY, FreezeView } from "#/components/FreezeView";
 import { Header } from "#/components/Header";
 import { InteractionsView } from "#/components/InteractionsView";
 import { LineFocusView } from "#/components/LineFocusView";
@@ -11,6 +12,8 @@ import { NetworkView } from "#/components/NetworkView";
 import { TabNav } from "#/components/TabNav";
 import { buildLineViews, buildMapData, computeKpi, deriveTrain, formatAlerts } from "#/derive";
 import type { Filter, View } from "#/types";
+import { useThqFreezes } from "#/useThqFreezes";
+import type { FreezeQuery } from "#/useThqFreezes";
 import { useThqDevices } from "#/useThqSocket";
 import { ViewSettingsProvider } from "#/useViewSetting";
 import { formatClock } from "#/utils";
@@ -27,6 +30,11 @@ function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeLineId, setActiveLineId] = useState<number | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  const [freezeQuery, setFreezeQuery] = useState<FreezeQuery>(DEFAULT_FREEZE_QUERY);
+  // 上流の凍結検出クエリは重いので、タブを一度開くまで取得しない。
+  // 一度開いたら以降は常に有効にして、タブを行き来しても再取得しないようにする。
+  const [freezeEnabled, setFreezeEnabled] = useState(false);
+  const freeze = useThqFreezes(freezeQuery, freezeEnabled);
 
   const views = Array.from(devices.values()).map((d) => deriveTrain(d, now, lineMetadata));
   const kpi = computeKpi(views);
@@ -81,7 +89,10 @@ function Home() {
         />
         <TabNav
           view={view}
-          onChangeView={setView}
+          onChangeView={(next) => {
+            if (next === "freeze") setFreezeEnabled(true);
+            setView(next);
+          }}
           counts={{ normal: kpi.normal, warn: kpi.warn, err: kpi.err }}
         />
         <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
@@ -119,6 +130,14 @@ function Home() {
           )}
           {view === "battery" && (
             <BatteryView history={thq.batteryHistory} views={views} now={now} />
+          )}
+          {view === "freeze" && (
+            <FreezeView
+              freeze={freeze}
+              query={freezeQuery}
+              onChangeQuery={setFreezeQuery}
+              lineMetadata={lineMetadata}
+            />
           )}
         </div>
         <LiveStatusBar url={THQ_EVENTS_PATH} socket={thq} />
