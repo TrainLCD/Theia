@@ -82,16 +82,22 @@ describe("FreezeView", () => {
     expect(getByText("11302:1130201:1130202")).toBeTruthy();
   });
 
-  it("凍結が 0 件でも対象セッションがあれば「凍結なし」として区別できる", () => {
-    const { getByText, queryByText } = renderView(
-      state({
-        summary: [{ ...SUMMARY_ROW, freezeSessionCount: 0, freezeCount: 0, maxGapMs: null }],
-      }),
-    );
-    // 集計グループはあるが凍結はゼロ、という状態が読み取れること。
+  it("凍結 0 件のグループは既定で畳み、件数と「凍結なし」であることは残す", () => {
+    const clean = { ...SUMMARY_ROW, freezeSessionCount: 0, freezeCount: 0, maxGapMs: null };
+    const { getByText, queryByText } = renderView(state({ summary: [clean] }));
+    // 行そのものは出さないが、対象が無かったのではなく凍結が無かったと分かること。
+    expect(queryByText("11302:1130201:1130202")).toBeNull();
+    expect(getByText("この条件では凍結はありません (対象 1 件はいずれも凍結 0)")).toBeTruthy();
     expect(getByText("集計グループ").nextSibling?.textContent).toBe("1");
     expect(getByText("凍結件数").nextSibling?.textContent).toBe("0");
-    expect(queryByText("条件に一致するグループがありません")).toBeNull();
+  });
+
+  it("「凍結ありのみ」を外すとビルド間比較のために凍結 0 件も並べる", () => {
+    const clean = { ...SUMMARY_ROW, freezeSessionCount: 0, freezeCount: 0, maxGapMs: null };
+    const { getByLabelText, getByText } = renderView(state({ summary: [SUMMARY_ROW, clean] }));
+    expect(getByText("1 件 (凍結なし 1 件を非表示)")).toBeTruthy();
+    fireEvent.click(getByLabelText("凍結ありのみ"));
+    expect(getByText("2 件")).toBeTruthy();
   });
 
   it("タブを切り替えると個別の欠落を欠落長・ずれ付きで表示する", () => {
