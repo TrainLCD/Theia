@@ -147,11 +147,19 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
         flexDirection: "column",
         padding: "16px 18px",
         gap: 11,
-        overflowY: "auto",
+        overflow: "hidden",
         background: "radial-gradient(1200px 600px at 30% -10%, #0d1729, #080b12)",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+      <div
+        style={{
+          flex: "none",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          flexWrap: "wrap",
+        }}
+      >
         <div
           style={{ fontSize: 12, fontWeight: 600, color: SECONDARY_INK, letterSpacing: ".14em" }}
         >
@@ -187,6 +195,7 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
 
       <div
         style={{
+          flex: "none",
           background: SURFACE,
           border: "1px solid #22324f",
           borderRadius: 11,
@@ -255,6 +264,7 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
       {freeze.error && (
         <div
           style={{
+            flex: "none",
             background: "#2a1116",
             border: "1px solid #5c2029",
             borderRadius: 9,
@@ -267,7 +277,7 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 11 }}>
+      <div style={{ flex: "none", display: "flex", gap: 11 }}>
         <StatTile
           label="凍結件数"
           value={String(totalFreezes)}
@@ -286,7 +296,7 @@ export function FreezeView({ freeze, query, onChangeQuery, lineMetadata }: Freez
         <StatTile label="集計グループ" value={String(freeze.summary.length)} />
       </div>
 
-      <div style={{ display: "flex", gap: 4 }}>
+      <div style={{ flex: "none", display: "flex", gap: 4 }}>
         {PANES.map((p) => (
           <button
             key={p.key}
@@ -343,9 +353,12 @@ function Card({
   return (
     <div
       style={{
-        // 中身が横スクロールコンテナなので自動最小高さが 0 になる。flex: none を
-        // 付けないと縦に潰され、overflow: hidden で行が切り取られる。
-        flex: "none",
+        // 残りの高さいっぱいまで伸ばし、行の縦スクロールはこのカードの中だけで
+        // 起こす。こうするとフィルタと集計タイルが常に見えたままになる。
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
         background: SURFACE,
         border: "1px solid #22324f",
         borderRadius: 11,
@@ -354,6 +367,7 @@ function Card({
     >
       <div
         style={{
+          flex: "none",
           padding: "10px 14px",
           fontSize: 11,
           fontWeight: 600,
@@ -370,7 +384,7 @@ function Card({
           {count > MAX_ROWS ? `${count} 件中 ${MAX_ROWS} 件を表示` : `${count} 件`}
         </span>
       </div>
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
         <div style={{ minWidth: 860 }}>
           <div
             style={{
@@ -381,6 +395,12 @@ function Card({
               color: AXIS_INK,
               letterSpacing: ".1em",
               borderBottom: "1px solid #1e2c44",
+              // 行数が多いので列見出しは縦スクロール中も残す。横スクロールには
+              // 追従させたいので sticky は top のみ。
+              position: "sticky",
+              top: 0,
+              zIndex: 1,
+              background: SURFACE,
             }}
           >
             {headers.map((h) => (
