@@ -98,7 +98,11 @@ function readSignature(raw: unknown): TriageSignature | null {
   if (typeof raw !== "object" || raw === null) return null;
   const { key, logType, level, message } = raw as Record<string, unknown>;
   if (typeof key !== "string" || key === "") return null;
-  if (typeof logType !== "string") return null;
+  // logType にコロンが入ると key の区切りが一意に決まらない。
+  // ("app:error:b" + "warn" + "c") と ("app" + "error" + "b:warn:c") が同じ key になり、
+  // 中身の違うログが互いのキャッシュを引いてしまう。level は語彙が固定、message は
+  // 末尾なので、曖昧になるのは logType だけ。
+  if (typeof logType !== "string" || logType.includes(":")) return null;
   if (typeof level !== "string" || !LEVELS.has(level)) return null;
   if (typeof message !== "string") return null;
   // key は本文から決まる値なので、送られてきた key が本文と食い違っていたら受け取らない。
@@ -194,19 +198,15 @@ function getClient(): TypeSafeClient | null {
   return client;
 }
 
+// 同時実行の制限と遮断の判定は呼び出し元 (triageAlerts の worker) が持つ。
+// ここでスロットを待つと、待っている間に遮断されたことに気付けない。
 async function askTypeSafe(signature: TriageSignature): Promise<TriageJudgement> {
   const active = getClient();
   if (active == null) throw new Error("TYPESAFE_API_KEY is not set");
-  await acquireSlot();
-  let answers: Awaited<ReturnType<typeof active.systemOne<typeof TRIAGE_QUESTIONS>>>["answers"];
-  try {
-    ({ answers } = await active.systemOne({
-      state: buildTriageState(signature),
-      questions: TRIAGE_QUESTIONS,
-    }));
-  } finally {
-    releaseSlot();
-  }
+  const { answers } = await active.systemOne({
+    state: buildTriageState(signature),
+    questions: TRIAGE_QUESTIONS,
+  });
   return {
     key: signature.key,
     impact: answers.impact.score,
@@ -267,7 +267,14 @@ export async function triageAlerts(
         skipped += 1;
         continue;
       }
+      await acquireSlot();
       try {
+        // スロットを待っている間に遮断されることがある。取得後にもう一度見ないと、
+        // 待たされていたぶんが遮断後に上流を叩く。
+        if (breakerIsOpen(Date.now())) {
+          skipped += 1;
+          continue;
+        }
         const judgement = await deps.judge(signature);
         recordJudgeSuccess();
         remember(judgement);
@@ -275,6 +282,8 @@ export async function triageAlerts(
       } catch (e: unknown) {
         recordJudgeFailure(Date.now());
         failures.push(e instanceof Error ? e.message : String(e));
+      } finally {
+        releaseSlot();
       }
     }
   });

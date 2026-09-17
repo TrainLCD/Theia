@@ -71,6 +71,20 @@ describe("parseTriageBody", () => {
     expect(ok(parseTriageBody({ signatures: [sig("GPS timeout")] }))).toEqual([sig("GPS timeout")]);
   });
 
+  it("rejects a logType containing a colon, which would make the key ambiguous", () => {
+    // ("app:error:b" + "warn" + "c") と ("app" + "error" + "b:warn:c") は
+    // どちらも key が "app:error:b:warn:c" になる。片方の判定がもう片方に返ってしまう。
+    const ambiguous = {
+      key: "app:error:b:warn:c",
+      logType: "app:error:b",
+      level: "warn",
+      message: "c",
+    };
+    expect(parseTriageBody({ signatures: [ambiguous] })).toEqual({
+      error: "invalid signature entry",
+    });
+  });
+
   it("rejects a malformed body instead of silently skipping entries", () => {
     expect(parseTriageBody(null)).toEqual({ error: "body must be an object" });
     expect(parseTriageBody({})).toEqual({ error: '"signatures" must be an array' });
@@ -186,5 +200,24 @@ describe("triage circuit breaker", () => {
     expect(calls).toBe(5);
     expect(second.judgements).toEqual([]);
     expect(second.error).toBe("上流の連続失敗により問い合わせを停止中");
+  });
+
+  it("abandons the rest of the queue once the breaker opens mid-request", async () => {
+    let calls = 0;
+    const deps: TriageDeps = {
+      judge: async () => {
+        calls += 1;
+        throw new Error("upstream down");
+      },
+    };
+    const batch = Array.from({ length: 12 }, (_, i) => sig(`m${i}`));
+    const result = await triageAlerts(batch, deps);
+    // 遮断の判定は 1 件ごとなので、同時に走っている worker のぶんだけ行き過ぎる。
+    // 4 並列の 1 巡目 (4 件) では閾値 5 に届かず、2 巡目の 4 件も走ってから開く。
+    // 行き過ぎは worker 数までに収まり、残り 4 件は上流に投げない。
+    expect(calls).toBe(8);
+    expect(calls).toBeLessThan(batch.length);
+    expect(result.judgements).toEqual([]);
+    expect(result.error).toContain("残り 4 件は中止");
   });
 });
