@@ -90,8 +90,9 @@ export function TriageSummaryBadge({ summary }: { summary: TriageSummary }) {
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
       <TriageBadge
         color={color}
-        faded={worst.impactConfidence < LOW_CONFIDENCE}
-        title={`最も重いログ: ${TRIAGE_CATEGORY_LABEL[worst.category]}・影響度 ${worst.impact.toFixed(2)} / 3・確信度 ${pct(worst.impactConfidence)}`}
+        // カテゴリ名と影響度を 1 個で出しているので、どちらかの判定が割れていたら控えめにする。
+        faded={worst.categoryConfidence < LOW_CONFIDENCE || worst.impactConfidence < LOW_CONFIDENCE}
+        title={`最も重いログ: ${TRIAGE_CATEGORY_LABEL[worst.category]} (所在の確信度 ${pct(worst.categoryConfidence)})・影響度 ${worst.impact.toFixed(2)} / 3 (確信度 ${pct(worst.impactConfidence)})`}
       >
         {TRIAGE_CATEGORY_LABEL[worst.category]} / {triageImpactLabel(worst.impact)}
       </TriageBadge>

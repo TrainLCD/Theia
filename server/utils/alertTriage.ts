@@ -15,6 +15,9 @@ import {
 const CACHE_CAP = 500;
 const CONCURRENCY = 4;
 const REQUEST_TIMEOUT_MS = 15_000;
+// 連続でこの回数失敗したら、上流が落ちているとみなして一定時間問い合わせを止める。
+const BREAKER_THRESHOLD = 5;
+const BREAKER_COOLDOWN_MS = 60_000;
 
 const IMPACT_CRITERIA: [EntryType, EntryType, EntryType, EntryType] = [
   {
@@ -98,6 +101,9 @@ function readSignature(raw: unknown): TriageSignature | null {
   if (typeof logType !== "string") return null;
   if (typeof level !== "string" || !LEVELS.has(level)) return null;
   if (typeof message !== "string") return null;
+  // key は本文から決まる値なので、送られてきた key が本文と食い違っていたら受け取らない。
+  // ここを素通しすると、別のログに既存の判定をキャッシュから返してしまう。
+  if (key !== `${logType}:${level}:${message}`) return null;
   return { key, logType, level: level as "warn" | "error", message };
 }
 
@@ -132,9 +138,50 @@ function remember(judgement: TriageJudgement): void {
   }
 }
 
-/** テスト用。プロセス内キャッシュを空にする。 */
+/** テスト用。プロセス内のキャッシュと連続失敗の記録を空にする。 */
 export function clearTriageCache(): void {
   cache.clear();
+  consecutiveFailures = 0;
+  breakerOpenUntil = 0;
+}
+
+// TypeSafe への同時実行数をプロセス全体で抑える。/api/thq-triage はリクエストごとに
+// triageAlerts を呼ぶので、1 リクエスト内の CONCURRENCY だけでは同時アクセス数のぶん
+// 倍に膨らむ。SDK 側に同時実行の制限は無いため、ここで持つ。
+let inFlight = 0;
+const waiting: (() => void)[] = [];
+
+async function acquireSlot(): Promise<void> {
+  // 起こされた後にもう一度見る。resolve とカウンタ加算の間に別の呼び出しが
+  // 割り込めるので、if ではなく while でないと上限を超える。
+  while (inFlight >= CONCURRENCY) {
+    await new Promise<void>((resolve) => waiting.push(resolve));
+  }
+  inFlight += 1;
+}
+
+function releaseSlot(): void {
+  inFlight -= 1;
+  waiting.shift()?.();
+}
+
+// 上流が落ちているとき、リクエストのたびに 24 件 × タイムアウトを積み上げないための遮断。
+// 失敗した判定はキャッシュしないので、これが無いと同じ問い合わせを延々と繰り返す。
+let consecutiveFailures = 0;
+let breakerOpenUntil = 0;
+
+function breakerIsOpen(now: number): boolean {
+  return now < breakerOpenUntil;
+}
+
+function recordJudgeSuccess(): void {
+  consecutiveFailures = 0;
+  breakerOpenUntil = 0;
+}
+
+function recordJudgeFailure(now: number): void {
+  consecutiveFailures += 1;
+  if (consecutiveFailures >= BREAKER_THRESHOLD) breakerOpenUntil = now + BREAKER_COOLDOWN_MS;
 }
 
 let client: TypeSafeClient | null | undefined;
@@ -150,10 +197,16 @@ function getClient(): TypeSafeClient | null {
 async function askTypeSafe(signature: TriageSignature): Promise<TriageJudgement> {
   const active = getClient();
   if (active == null) throw new Error("TYPESAFE_API_KEY is not set");
-  const { answers } = await active.systemOne({
-    state: buildTriageState(signature),
-    questions: TRIAGE_QUESTIONS,
-  });
+  await acquireSlot();
+  let answers: Awaited<ReturnType<typeof active.systemOne<typeof TRIAGE_QUESTIONS>>>["answers"];
+  try {
+    ({ answers } = await active.systemOne({
+      state: buildTriageState(signature),
+      questions: TRIAGE_QUESTIONS,
+    }));
+  } finally {
+    releaseSlot();
+  }
   return {
     key: signature.key,
     impact: answers.impact.score,
@@ -184,8 +237,14 @@ export async function triageAlerts(
   const queue: TriageSignature[] = [];
   for (const signature of signatures.slice(0, MAX_TRIAGE_BATCH)) {
     const cached = cache.get(signature.key);
-    if (cached) judgements.push(cached);
-    else queue.push(signature);
+    if (cached) {
+      // Map.get は挿入順を動かさない。参照されたものを末尾に送り直さないと
+      // FIFO になり、よく出るログほど先に捨てられる。
+      remember(cached);
+      judgements.push(cached);
+    } else {
+      queue.push(signature);
+    }
   }
   if (queue.length === 0) return { judgements };
 
@@ -193,22 +252,38 @@ export async function triageAlerts(
     return { judgements, error: "TYPESAFE_API_KEY is not set" };
   }
 
+  if (breakerIsOpen(Date.now())) {
+    return { judgements, error: "上流の連続失敗により問い合わせを停止中" };
+  }
+
   const failures: string[] = [];
   let next = 0;
+  let skipped = 0;
   const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
     while (next < queue.length) {
       const signature = queue[next++]!;
+      // 走っている途中で遮断されたら、残りは問い合わせずに諦める。
+      if (breakerIsOpen(Date.now())) {
+        skipped += 1;
+        continue;
+      }
       try {
         const judgement = await deps.judge(signature);
+        recordJudgeSuccess();
         remember(judgement);
         judgements.push(judgement);
       } catch (e: unknown) {
+        recordJudgeFailure(Date.now());
         failures.push(e instanceof Error ? e.message : String(e));
       }
     }
   });
   await Promise.all(workers);
 
-  if (failures.length === 0) return { judgements };
-  return { judgements, error: `${failures.length} 件の判定に失敗: ${failures[0]}` };
+  if (failures.length === 0 && skipped === 0) return { judgements };
+  if (failures.length === 0) {
+    return { judgements, error: `上流の連続失敗により ${skipped} 件の問い合わせを中止` };
+  }
+  const suffix = skipped > 0 ? ` (残り ${skipped} 件は中止)` : "";
+  return { judgements, error: `${failures.length} 件の判定に失敗: ${failures[0]}${suffix}` };
 }

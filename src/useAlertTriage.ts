@@ -45,6 +45,9 @@ export const MAX_TRIAGE_BATCH = 24;
 /** これだけ連続で失敗したら以降は問い合わせない。 */
 const MAX_CONSECUTIVE_FAILURES = 3;
 
+/** 1 つの文面を送り直す上限。判定が返らないまま候補に戻り続けるのを防ぐ。 */
+const MAX_ATTEMPTS_PER_KEY = 2;
+
 export function signatureFor(alert: AlertEntry): TriageSignature {
   return {
     key: alert.key,
@@ -148,9 +151,15 @@ export function useAlertTriage(
 ): AlertTriageState {
   const [judgements, setJudgements] = useState<Map<string, TriageJudgement>>(() => new Map());
   const [error, setError] = useState<string | null>(null);
-  // 送信済みの文面。判定が返らなかったものも入れておき、同じ文面を何度も送らない。
-  const requestedRef = useRef<Set<string>>(new Set());
+  // 文面ごとの扱い。送信中・判定済み・諦めたものは次のバッチに入れない。
+  // 送信中を判定済みと分けないと、返らなかった文面が永久に候補から外れる。
+  const inFlightRef = useRef<Map<string, AbortController>>(new Map());
+  const settledRef = useRef<Set<string>>(new Set());
+  const attemptsRef = useRef<Map<string, number>>(new Map());
   const failuresRef = useRef(0);
+  // 1 リクエスト終わるごとに進める。alerts が変わらなくても effect をもう一度
+  // 走らせないと、1 バッチ (24 件) を超えるぶんの続きを取りに行けない。
+  const [round, setRound] = useState(0);
 
   useEffect(() => {
     if (!enabled) return;
@@ -159,15 +168,27 @@ export function useAlertTriage(
     const batch: TriageSignature[] = [];
     const seen = new Set<string>();
     for (const alert of alerts) {
-      if (seen.has(alert.key) || requestedRef.current.has(alert.key)) continue;
+      if (seen.has(alert.key)) continue;
+      if (settledRef.current.has(alert.key) || inFlightRef.current.has(alert.key)) continue;
       seen.add(alert.key);
       batch.push(signatureFor(alert));
       if (batch.length >= MAX_TRIAGE_BATCH) break;
     }
     if (batch.length === 0) return;
-    for (const signature of batch) requestedRef.current.add(signature.key);
 
     const controller = new AbortController();
+    for (const signature of batch) inFlightRef.current.set(signature.key, controller);
+
+    // 自分が送ったぶんだけ外す。後から始まったバッチが同じ文面を握っている場合に
+    // それを剥がしてしまうと、二重送信になる。
+    const releaseOwned = () => {
+      for (const signature of batch) {
+        if (inFlightRef.current.get(signature.key) === controller) {
+          inFlightRef.current.delete(signature.key);
+        }
+      }
+    };
+
     fetch(path, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -181,24 +202,43 @@ export function useAlertTriage(
       .then((payload) => {
         failuresRef.current = 0;
         setError(payload.error ?? null);
-        if (payload.judgements.length === 0) return;
-        setJudgements((prev) => {
-          const next = new Map(prev);
-          for (const judgement of payload.judgements) next.set(judgement.key, judgement);
-          return next;
-        });
+        const returned = new Set(payload.judgements.map((j) => j.key));
+        releaseOwned();
+        for (const signature of batch) {
+          if (returned.has(signature.key)) {
+            settledRef.current.add(signature.key);
+            attemptsRef.current.delete(signature.key);
+            continue;
+          }
+          // 返らなかったぶんは次のバッチで拾い直すが、回数は区切る。
+          const attempts = (attemptsRef.current.get(signature.key) ?? 0) + 1;
+          attemptsRef.current.set(signature.key, attempts);
+          if (attempts >= MAX_ATTEMPTS_PER_KEY) settledRef.current.add(signature.key);
+        }
+        if (payload.judgements.length > 0) {
+          setJudgements((prev) => {
+            const next = new Map(prev);
+            for (const judgement of payload.judgements) next.set(judgement.key, judgement);
+            return next;
+          });
+        }
+        setRound((r) => r + 1);
       })
       .catch((e: unknown) => {
+        releaseOwned();
         if (controller.signal.aborted) return;
         failuresRef.current += 1;
-        // 送信済みの印を外し、次にアラートが届いたときに取り直せるようにする。
-        // 連続失敗が上限に達した時点で問い合わせ自体を止めるので、再試行は無限には続かない。
-        for (const signature of batch) requestedRef.current.delete(signature.key);
         setError(e instanceof Error ? e.message : String(e));
+        setRound((r) => r + 1);
       });
 
-    return () => controller.abort();
-  }, [alerts, enabled, path]);
+    return () => {
+      controller.abort();
+      // 中止した時点で外しておく。catch が走るのは次の effect が始まった後なので、
+      // そこまで待つと中止したぶんが候補に戻らないまま取り残される。
+      releaseOwned();
+    };
+  }, [alerts, enabled, path, round]);
 
   return { judgements, error };
 }
