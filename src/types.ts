@@ -1,5 +1,5 @@
 export type View = "network" | "map" | "line" | "engineer" | "interactions" | "battery" | "freeze";
-export type Filter = "all" | "alert" | "error" | "comm";
+export type Filter = "all" | "alert" | "error" | "comm" | "fix";
 export type Comm = "ok" | "weak" | "lost";
 export type Status = "normal" | "warn" | "error";
 export type Severity = "E" | "W";
@@ -40,6 +40,10 @@ export interface BatterySample {
 
 export interface AlertEntry {
   ts: number;
+  /** ログ本文ごとの識別子 (`${log.type}:${log.level}:${message}`)。トリアージ判定の単位。 */
+  key: string;
+  /** 元のログの type。判定に渡す文脈として使う。 */
+  logType: string;
   device: string;
   lineId: number | null;
   lineColor: string;
@@ -49,6 +53,8 @@ export interface AlertEntry {
 }
 
 export interface TrainErrorView {
+  /** activeErrors の Map キーそのもの。AlertEntry.key と同じで、トリアージ判定を引ける。 */
+  key: string;
   code: string;
   label: string;
   sev: Severity;
@@ -171,6 +177,8 @@ export interface MapData {
 }
 
 export interface FormattedAlert {
+  /** AlertEntry.key をそのまま引き継ぐ。トリアージ判定を引くためのキー。 */
+  key: string;
   time: string;
   device: string;
   line: string;

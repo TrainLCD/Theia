@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type {
   FormattedAlert,
   LineMeta,
@@ -7,9 +7,12 @@ import type {
   TrainView,
   TravelDir,
 } from "../types";
+import { summarizeTrains, triagePriority, type TriageJudgement } from "../useAlertTriage";
+import { useViewSetting } from "../useViewSetting";
 import { BatteryBadge } from "./BatteryBadge";
 import { Dial } from "./Dial";
 import { StationInfoCard } from "./StationInfoCard";
+import { TriageBadges, TriageSummaryBadge } from "./TriageBadge";
 
 function travelBorderRadius(dir: TravelDir, nose: number, tail: number): string {
   if (dir === 1) return `${tail}px ${nose}px ${nose}px ${tail}px`;
@@ -22,10 +25,12 @@ export interface NetworkViewProps {
   linesView: LineView[];
   sel: TrainView | null;
   alerts: FormattedAlert[];
+  /** ログ本文ごとのトリアージ判定。後追いで届くので、無いアラートは時刻順のまま出す。 */
+  triage: Map<string, TriageJudgement>;
   onSelectTrain: (id: string) => void;
 }
 
-export function NetworkView({ linesView, sel, alerts, onSelectTrain }: NetworkViewProps) {
+export function NetworkView({ linesView, sel, alerts, triage, onSelectTrain }: NetworkViewProps) {
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex" }}>
       <div
@@ -50,7 +55,13 @@ export function NetworkView({ linesView, sel, alerts, onSelectTrain }: NetworkVi
         </div>
         {linesView.length === 0 && <EmptyState />}
         {linesView.map((ln) => (
-          <LineStrip key={ln.meta.id} ln={ln} sel={sel} onSelectTrain={onSelectTrain} />
+          <LineStrip
+            key={ln.meta.id}
+            ln={ln}
+            sel={sel}
+            triage={triage}
+            onSelectTrain={onSelectTrain}
+          />
         ))}
       </div>
 
@@ -78,7 +89,7 @@ export function NetworkView({ linesView, sel, alerts, onSelectTrain }: NetworkVi
           </div>
           {sel ? <SelectedDevicePanel sel={sel} /> : <SelectedDevicePlaceholder />}
         </div>
-        <AlertFeed alerts={alerts} />
+        <AlertFeed alerts={alerts} triage={triage} />
       </aside>
     </div>
   );
@@ -105,14 +116,19 @@ function EmptyState() {
 function LineStrip({
   ln,
   sel,
+  triage,
   onSelectTrain,
 }: {
   ln: LineView;
   sel: TrainView | null;
+  triage: Map<string, TriageJudgement>;
   onSelectTrain: (id: string) => void;
 }) {
   const [hoverStationId, setHoverStationId] = useState<number | null>(null);
   const hoveredStation = ln.stations.find((s) => s.id === hoverStationId) ?? null;
+  // 路線に乗っている端末のログをまとめる。件数は alertCount がコード側で数えているので、
+  // ここは「その路線で一番重いのは何か」だけを足す。
+  const summary = useMemo(() => summarizeTrains(ln.devices, triage), [ln.devices, triage]);
   return (
     <div
       style={{
@@ -154,6 +170,7 @@ function LineStrip({
             ⚠ {ln.alertCount}
           </span>
         )}
+        <TriageSummaryBadge summary={summary} />
       </div>
       {ln.stations.length > 0 ? (
         <div style={{ position: "relative", height: 46, margin: "0 6px 28px" }}>
@@ -666,7 +683,29 @@ function SelectedDevicePlaceholder() {
   );
 }
 
-function AlertFeed({ alerts }: { alerts: FormattedAlert[] }) {
+type AlertSort = "time" | "priority";
+
+function AlertFeed({
+  alerts,
+  triage,
+}: {
+  alerts: FormattedAlert[];
+  triage: Map<string, TriageJudgement>;
+}) {
+  const [sort, setSort] = useViewSetting<AlertSort>("network.alertSort", "time");
+  // 判定は後追いで届くので、重要度順でも未判定のものは最後に落として時刻順を保つ。
+  const ordered = useMemo(() => {
+    if (sort === "time") return alerts;
+    return alerts
+      .map((a, i) => ({ a, i, p: triage.get(a.key) }))
+      .sort((x, y) => {
+        const px = x.p ? triagePriority(x.p) : -1;
+        const py = y.p ? triagePriority(y.p) : -1;
+        return py - px || x.i - y.i;
+      })
+      .map((e) => e.a);
+  }, [alerts, triage, sort]);
+
   return (
     <div
       style={{
@@ -690,6 +729,8 @@ function AlertFeed({ alerts }: { alerts: FormattedAlert[] }) {
             animation: "glowPulse 1.3s infinite",
           }}
         />
+        <div style={{ flex: 1 }} />
+        <SortToggle sort={sort} onChange={setSort} />
       </div>
       <div
         style={{
@@ -702,10 +743,10 @@ function AlertFeed({ alerts }: { alerts: FormattedAlert[] }) {
           paddingBottom: 16,
         }}
       >
-        {alerts.map((a, i) => (
-          <AlertItem key={i} a={a} />
+        {ordered.map((a, i) => (
+          <AlertItem key={i} a={a} judgement={triage.get(a.key)} />
         ))}
-        {alerts.length === 0 && (
+        {ordered.length === 0 && (
           <div style={{ color: "#51617a", fontSize: 11, padding: "16px 4px" }}>アラートなし</div>
         )}
       </div>
@@ -713,7 +754,41 @@ function AlertFeed({ alerts }: { alerts: FormattedAlert[] }) {
   );
 }
 
-function AlertItem({ a }: { a: FormattedAlert }) {
+const SORTS: { key: AlertSort; label: string }[] = [
+  { key: "time", label: "新着順" },
+  { key: "priority", label: "重要度順" },
+];
+
+function SortToggle({ sort, onChange }: { sort: AlertSort; onChange: (next: AlertSort) => void }) {
+  return (
+    <div style={{ display: "flex", gap: 3 }}>
+      {SORTS.map((s) => {
+        const active = s.key === sort;
+        return (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => onChange(s.key)}
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: active ? "#dbe6f5" : "#51617a",
+              background: active ? "#17233a" : "transparent",
+              border: `1px solid ${active ? "#2b3d5e" : "#1a2740"}`,
+              padding: "2px 7px",
+              borderRadius: 5,
+              cursor: "pointer",
+            }}
+          >
+            {s.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AlertItem({ a, judgement }: { a: FormattedAlert; judgement?: TriageJudgement }) {
   return (
     <div
       style={{
@@ -764,6 +839,11 @@ function AlertItem({ a }: { a: FormattedAlert }) {
         <div style={{ fontSize: 10, color: "#6b7d9c", marginTop: 2 }}>
           <span style={{ color: a.lineColor }}>●</span> {a.line} · {a.device}
         </div>
+        {judgement && (
+          <div style={{ marginTop: 5 }}>
+            <TriageBadges judgement={judgement} />
+          </div>
+        )}
       </div>
     </div>
   );

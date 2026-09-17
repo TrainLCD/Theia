@@ -1,6 +1,9 @@
+import { useMemo } from "react";
 import type { LineView, TrainView, TravelDir } from "../types";
+import { summarizeTriage, summarizeTrains, type TriageJudgement } from "../useAlertTriage";
 import { BatteryBadge } from "./BatteryBadge";
 import { Dial } from "./Dial";
+import { TriageSummaryBadge } from "./TriageBadge";
 
 function travelBorderRadius(dir: TravelDir, nose: number, tail: number): string {
   if (dir === 1) return `${tail}px ${nose}px ${nose}px ${tail}px`;
@@ -12,6 +15,8 @@ function travelBorderRadius(dir: TravelDir, nose: number, tail: number): string 
 export interface LineFocusViewProps {
   linesView: LineView[];
   activeLine: LineView | null;
+  /** ログ本文ごとのトリアージ判定。後追いで届くので、無い路線は従来どおりの表示になる。 */
+  triage: Map<string, TriageJudgement>;
   onSelectLine: (id: number) => void;
   onSelectTrain: (id: string) => void;
 }
@@ -19,6 +24,7 @@ export interface LineFocusViewProps {
 export function LineFocusView({
   linesView,
   activeLine,
+  triage,
   onSelectLine,
   onSelectTrain,
 }: LineFocusViewProps) {
@@ -38,7 +44,7 @@ export function LineFocusView({
       <LineTabs linesView={linesView} activeLine={activeLine} onSelectLine={onSelectLine} />
       {activeLine ? (
         <>
-          <LineMap activeLine={activeLine} onSelectTrain={onSelectTrain} />
+          <LineMap activeLine={activeLine} triage={triage} onSelectTrain={onSelectTrain} />
           <div style={{ fontSize: 12, fontWeight: 600, color: "#8597b3", letterSpacing: ".14em" }}>
             動作中端末 — 速度 / 測位精度
           </div>
@@ -50,7 +56,12 @@ export function LineFocusView({
             }}
           >
             {activeLine.devices.map((tr) => (
-              <TrainCard key={tr.id} tr={tr} onSelect={() => onSelectTrain(tr.id)} />
+              <TrainCard
+                key={tr.id}
+                tr={tr}
+                triage={triage}
+                onSelect={() => onSelectTrain(tr.id)}
+              />
             ))}
             {activeLine.devices.length === 0 && (
               <div
@@ -134,12 +145,18 @@ function LineTabs({
 
 function LineMap({
   activeLine,
+  triage,
   onSelectTrain,
 }: {
   activeLine: LineView;
+  triage: Map<string, TriageJudgement>;
   onSelectTrain: (id: string) => void;
 }) {
   const hasStations = activeLine.stations.length > 0;
+  const summary = useMemo(
+    () => summarizeTrains(activeLine.devices, triage),
+    [activeLine.devices, triage],
+  );
   return (
     <div
       style={{
@@ -165,6 +182,7 @@ function LineMap({
           {activeLine.trainCount} 台{hasStations ? ` · ${activeLine.stations.length}駅` : ""}
           {activeLine.alertCount > 0 ? ` · ⚠ ${activeLine.alertCount}` : ""}
         </span>
+        <TriageSummaryBadge summary={summary} />
       </div>
       {hasStations ? (
         <div style={{ position: "relative", height: 46, margin: "0 14px 40px" }}>
@@ -352,7 +370,23 @@ function TrainBadge({ tr, onClick }: { tr: TrainView; onClick: () => void }) {
   );
 }
 
-function TrainCard({ tr, onSelect }: { tr: TrainView; onSelect: () => void }) {
+function TrainCard({
+  tr,
+  triage,
+  onSelect,
+}: {
+  tr: TrainView;
+  triage: Map<string, TriageJudgement>;
+  onSelect: () => void;
+}) {
+  const summary = useMemo(
+    () =>
+      summarizeTriage(
+        tr.errors.map((e) => e.key),
+        triage,
+      ),
+    [tr.errors, triage],
+  );
   return (
     <div
       onClick={onSelect}
@@ -383,6 +417,7 @@ function TrainCard({ tr, onSelect }: { tr: TrainView; onSelect: () => void }) {
         </span>
         <BatteryBadge tr={tr} />
         <div style={{ flex: 1 }} />
+        <TriageSummaryBadge summary={summary} />
         <span
           style={{
             width: 9,
