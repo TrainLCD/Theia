@@ -12,6 +12,7 @@ import { NetworkView } from "#/components/NetworkView";
 import { TabNav } from "#/components/TabNav";
 import { buildLineViews, buildMapData, computeKpi, deriveTrain, formatAlerts } from "#/derive";
 import type { Filter, View } from "#/types";
+import { summarizeTriage, useAlertTriage } from "#/useAlertTriage";
 import { useThqFreezes } from "#/useThqFreezes";
 import type { FreezeQuery } from "#/useThqFreezes";
 import { useThqDevices } from "#/useThqSocket";
@@ -25,6 +26,8 @@ export const Route = createFileRoute("/")({ component: Home });
 function Home() {
   const thq = useThqDevices(THQ_EVENTS_PATH);
   const { devices, alerts, now, lineMetadata } = thq;
+  // ログ本文の意味づけ。判定はサーバー経由で後追いに届くので、アラート表示は待たせない。
+  const triage = useAlertTriage(alerts);
 
   const [view, setView] = useState<View>("network");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -43,11 +46,24 @@ function Home() {
   const activeLine = linesView.find((l) => l.meta.id === activeLineId) ?? linesView[0] ?? null;
   const sel = selectedId ? (views.find((t) => t.id === selectedId) ?? null) : null;
 
+  // 端末ごとの判定要約。要修正フィルタ・ヘッダー KPI・端末行のバッジが同じ集計を見る。
+  const deviceSummaries = new Map(
+    views.map((v) => [
+      v.id,
+      summarizeTriage(
+        v.errors.map((e) => e.key),
+        triage.judgements,
+      ),
+    ]),
+  );
+  const needsFix = views.filter((v) => (deviceSummaries.get(v.id)?.needsFix ?? 0) > 0).length;
+
   const table = views
     .filter((t) => {
       if (filter === "alert") return t.isAlert;
       if (filter === "error") return t.status === "error";
       if (filter === "comm") return t.comm !== "ok";
+      if (filter === "fix") return (deviceSummaries.get(t.id)?.needsFix ?? 0) > 0;
       return true;
     })
     .sort((a, b) => Number(b.isAlert) - Number(a.isAlert) || a.conf - b.conf);
@@ -81,6 +97,7 @@ function Home() {
             running: kpi.running,
             total: kpi.total,
             alerts: kpi.alerts,
+            needsFix,
             avgMeters: kpi.avgMeters,
             avgSpeed: kpi.avgSpeed,
           }}
@@ -101,6 +118,7 @@ function Home() {
               linesView={linesView}
               sel={sel}
               alerts={formatAlerts(alerts, lineMetadata)}
+              triage={triage.judgements}
               onSelectTrain={setSelectedId}
             />
           )}
@@ -109,6 +127,7 @@ function Home() {
             <LineFocusView
               linesView={linesView}
               activeLine={activeLine}
+              triage={triage.judgements}
               onSelectLine={setActiveLineId}
               onSelectTrain={setSelectedId}
             />
@@ -122,7 +141,14 @@ function Home() {
               onFilter={setFilter}
               onSelectTrain={setSelectedId}
               selectedId={selectedId}
-              counts={{ total: kpi.total, alerts: kpi.alerts, err: kpi.err, commBad: kpi.commBad }}
+              counts={{
+                total: kpi.total,
+                alerts: kpi.alerts,
+                err: kpi.err,
+                commBad: kpi.commBad,
+                needsFix,
+              }}
+              triage={triage.judgements}
             />
           )}
           {view === "interactions" && (

@@ -1,7 +1,15 @@
 import type { ReactNode } from "react";
 
 export interface HeaderProps {
-  kpis: { running: number; total: number; alerts: number; avgMeters: number; avgSpeed: number };
+  kpis: {
+    running: number;
+    total: number;
+    alerts: number;
+    /** アプリ側の修正が要ると判定されたログを抱えている端末の数。判定が届くまでは 0。 */
+    needsFix: number;
+    avgMeters: number;
+    avgSpeed: number;
+  };
   clock: string;
   dateStr: string;
 }
@@ -37,6 +45,19 @@ export function Header({ kpis, clock, dateStr }: HeaderProps) {
           <span className="font-mono" style={{ color: "#f59e0b", fontSize: 19, fontWeight: 600 }}>
             {kpis.alerts}
             <span style={{ fontSize: 11, color: "#6b7d9c" }}> 件</span>
+          </span>
+        </KpiBlock>
+        <KpiBlock label="要修正の端末">
+          <span
+            className="font-mono"
+            style={{
+              color: kpis.needsFix > 0 ? "#ef4444" : "#3c4a63",
+              fontSize: 19,
+              fontWeight: 600,
+            }}
+          >
+            {kpis.needsFix}
+            <span style={{ fontSize: 11, color: "#6b7d9c" }}> 台</span>
           </span>
         </KpiBlock>
         <KpiBlock label="平均測位精度">

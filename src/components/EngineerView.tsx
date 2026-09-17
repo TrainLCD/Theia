@@ -1,6 +1,8 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import type { Filter, TrainView } from "../types";
+import { summarizeTriage, type TriageJudgement } from "../useAlertTriage";
 import { BatteryBadge } from "./BatteryBadge";
+import { TriageBadges, TriageSummaryBadge } from "./TriageBadge";
 
 const GRID = "1.1fr .9fr .7fr 1.2fr .8fr .7fr 1.5fr";
 
@@ -12,7 +14,9 @@ export interface EngineerViewProps {
   onFilter: (f: Filter) => void;
   onSelectTrain: (id: string) => void;
   selectedId: string | null;
-  counts: { total: number; alerts: number; err: number; commBad: number };
+  counts: { total: number; alerts: number; err: number; commBad: number; needsFix: number };
+  /** ログ本文ごとのトリアージ判定。後追いで届くので、無い端末は従来どおりの表示になる。 */
+  triage: Map<string, TriageJudgement>;
 }
 
 export function EngineerView({
@@ -24,6 +28,7 @@ export function EngineerView({
   onSelectTrain,
   selectedId,
   counts,
+  triage,
 }: EngineerViewProps) {
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex" }}>
@@ -53,6 +58,7 @@ export function EngineerView({
             <TableRow
               key={tr.id}
               tr={tr}
+              triage={triage}
               selected={tr.id === selectedId}
               onSelect={() => onSelectTrain(tr.id)}
             />
@@ -71,7 +77,7 @@ export function EngineerView({
           overflowY: "auto",
         }}
       >
-        {engSel && <DiagnosticsPanel engSel={engSel} />}
+        {engSel && <DiagnosticsPanel engSel={engSel} triage={triage} />}
         <WorstList worst={worst} onSelectTrain={onSelectTrain} />
       </aside>
     </div>
@@ -85,7 +91,7 @@ function FilterBar({
 }: {
   filter: Filter;
   onFilter: (f: Filter) => void;
-  counts: { total: number; alerts: number; err: number; commBad: number };
+  counts: { total: number; alerts: number; err: number; commBad: number; needsFix: number };
 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -104,6 +110,9 @@ function FilterBar({
       </FilterChip>
       <FilterChip on={filter === "comm"} color="#cdd8e8" onClick={() => onFilter("comm")}>
         通信異常 {counts.commBad}
+      </FilterChip>
+      <FilterChip on={filter === "fix"} color="#f87171" onClick={() => onFilter("fix")}>
+        要修正 {counts.needsFix}
       </FilterChip>
     </div>
   );
@@ -171,13 +180,23 @@ function TableHeader() {
 
 function TableRow({
   tr,
+  triage,
   selected,
   onSelect,
 }: {
   tr: TrainView;
+  triage: Map<string, TriageJudgement>;
   selected: boolean;
   onSelect: () => void;
 }) {
+  const summary = useMemo(
+    () =>
+      summarizeTriage(
+        tr.errors.map((e) => e.key),
+        triage,
+      ),
+    [tr.errors, triage],
+  );
   return (
     <div
       onClick={onSelect}
@@ -246,14 +265,27 @@ function TableRow({
           {tr.statusLabel}
         </span>
       </div>
-      <div className="font-mono" style={{ padding: "9px 12px", fontSize: 10.5, color: "#94a3b8" }}>
-        {tr.errorCodes}
+      <div style={{ padding: "9px 12px", fontSize: 10.5, minWidth: 0 }}>
+        <div className="font-mono" style={{ color: "#94a3b8" }}>
+          {tr.errorCodes}
+        </div>
+        {summary.worst != null && (
+          <div style={{ marginTop: 4 }}>
+            <TriageSummaryBadge summary={summary} />
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
+function DiagnosticsPanel({
+  engSel,
+  triage,
+}: {
+  engSel: TrainView;
+  triage: Map<string, TriageJudgement>;
+}) {
   return (
     <div style={{ padding: 16, borderBottom: "1px solid #1e2c44" }}>
       <div
@@ -336,10 +368,11 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {engSel.errors.map((e) => (
             <div
-              key={`${e.code}:${e.label}`}
+              key={e.key}
               style={{
                 display: "flex",
                 alignItems: "flex-start",
+                flexWrap: "wrap",
                 gap: 9,
                 padding: "9px 10px",
                 background: e.bg,
@@ -389,6 +422,11 @@ function DiagnosticsPanel({ engSel }: { engSel: TrainView }) {
               >
                 {e.label}
               </span>
+              {triage.has(e.key) && (
+                <div style={{ flex: "0 0 100%" }}>
+                  <TriageBadges judgement={triage.get(e.key)!} />
+                </div>
+              )}
             </div>
           ))}
         </div>

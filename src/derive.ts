@@ -190,7 +190,9 @@ export function deriveTrain(
   const cc = confColorOf(conf);
   const meters = device.accuracy != null ? Math.round(device.accuracy) : null;
 
-  const errs = Array.from(device.activeErrors.values()).map((e) => ({
+  // Map のキーはログ本文ごとの識別子で、トリアージ判定を引くのに要る。落とさず持ち回す。
+  const errs = Array.from(device.activeErrors.entries()).map(([key, e]) => ({
+    key,
     code: e.code,
     label: e.message,
     sev: e.sev,
@@ -501,6 +503,7 @@ export function formatAlerts(
   externalLines?: Map<number, ExternalLineMeta>,
 ): FormattedAlert[] {
   return alerts.map((a) => ({
+    key: a.key,
     time: fmtTime(a.ts),
     device: a.device,
     line:

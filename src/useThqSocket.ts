@@ -295,11 +295,16 @@ function applyLog(state: ThqDevicesState, msg: ThqLogEvent, ts: number): ThqDevi
   const code = synthesizeCode(msg.log.type, msg.log.level);
   const label = msg.log.message;
   const errTs = msg.timestamp || ts;
+  // 同じ文面のログをまとめる識別子。端末ごとの activeErrors のキーと、
+  // トリアージ判定 (useAlertTriage) のキーを兼ねる。
+  const errKey = `${msg.log.type}:${msg.log.level}:${label}`;
 
   // 匿名ログ (device: null) は端末に紐付けられないため、アラートのみ記録する。
   if (msg.device == null) {
     const alert: AlertEntry = {
       ts: errTs,
+      key: errKey,
+      logType: msg.log.type,
       device: "匿名",
       lineId: null,
       lineColor: "#6b7d9c",
@@ -313,7 +318,6 @@ function applyLog(state: ThqDevicesState, msg: ThqLogEvent, ts: number): ThqDevi
   const devices = new Map(base.devices);
   const prev = devices.get(msg.device) ?? freshDevice(msg.device, errTs);
   const activeErrors = new Map(prev.activeErrors);
-  const errKey = `${msg.log.type}:${msg.log.level}:${label}`;
   const err: DeviceError = { code, message: label, sev, ts: errTs };
   activeErrors.set(errKey, err);
   const nextDevice: Device = { ...prev, activeErrors };
@@ -322,6 +326,8 @@ function applyLog(state: ThqDevicesState, msg: ThqLogEvent, ts: number): ThqDevi
   const meta = nextDevice.lineId != null ? lineMetaFor(nextDevice.lineId, base.lineMetadata) : null;
   const alert: AlertEntry = {
     ts: errTs,
+    key: errKey,
+    logType: msg.log.type,
     device: msg.device,
     lineId: nextDevice.lineId,
     lineColor: meta?.color ?? "#6b7d9c",
